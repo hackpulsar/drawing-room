@@ -10,7 +10,13 @@ namespace Core::Networking {
     using namespace boost::asio;
     using ip::tcp;
 
+    inline size_t GetNextConnectionID() {
+        static size_t id = 0;
+        return ++id;
+    }
+
     typedef std::function<void(const std::string&)> MessageCallback;
+    typedef std::function<void()> ErrorHandler;
 
     class TCPConnection : public boost::enable_shared_from_this<TCPConnection> {
     public:
@@ -23,7 +29,7 @@ namespace Core::Networking {
             return pointer(new TCPConnection(context));
         }
 
-        void Start(MessageCallback&& msgCallback);
+        void Start(MessageCallback&& msgCallback, ErrorHandler&& errorCallback);
 
         void Post(const std::string& sMessage);
 
@@ -42,7 +48,13 @@ namespace Core::Networking {
         std::stack<std::string> m_PendingMessages;
 
         MessageCallback m_MessageCallback;
+        ErrorHandler m_ErrorCallback;
 
+    };
+
+    struct TCPConnection_Data {
+        boost::shared_ptr<TCPConnection> pConnection;
+        size_t ID;
     };
 }
 

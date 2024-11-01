@@ -15,8 +15,9 @@ namespace Core::Networking {
         m_Socket.close();
     }
 
-    void TCPConnection::Start(MessageCallback&& msgCallback) {
+    void TCPConnection::Start(MessageCallback&& msgCallback, ErrorHandler&& errorHandler) {
         m_MessageCallback = std::move(msgCallback);
+        m_ErrorCallback = std::move(errorHandler);
         this->OnRead();
     }
 
@@ -73,7 +74,7 @@ namespace Core::Networking {
             m_MessageCallback(message);
         }
         else if (ec == error::eof) {
-            LOG_LINE("User has disconnected.");
+            m_ErrorCallback();
             m_Socket.close();
             return;
         }

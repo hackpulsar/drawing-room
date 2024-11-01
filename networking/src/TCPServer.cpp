@@ -15,53 +15,68 @@ namespace Core::Networking {
         // Close all connections
         LOG_LINE("Server shutdown");
         for (auto& s : m_Connections) {
-            s->getSocket().shutdown(tcp::socket::shutdown_both);
-            s->getSocket().close();
+            s.pConnection->getSocket().shutdown(tcp::socket::shutdown_both);
+            s.pConnection->getSocket().close();
         }
     }
 
     void TCPServer::StartAccept() {
         TCPConnection::pointer newConnection = TCPConnection::Create(m_IOContext);
+        TCPConnection_Data newConnectionData = { newConnection, GetNextConnectionID() };
 
         m_Acceptor.async_accept(
             newConnection->getSocket(),
             boost::bind(
                 &TCPServer::HandleAccept,
-                this, newConnection,
+                this, newConnectionData,
                 placeholders::error
             )
         );
 
-        m_Connections.push_back(newConnection);
+        m_Connections.push_back(newConnectionData);
     }
 
     void TCPServer::Broadcast(const std::string &sMessage) const {
         for (auto& c : m_Connections) {
-            if (c->getSocket().is_open())
-                c->Post(sMessage);
+            if (c.pConnection->getSocket().is_open())
+                c.pConnection->Post(sMessage);
         }
     }
 
-    void TCPServer::HandleAccept(const TCPConnection::pointer& connection, const boost::system::error_code& ec) {
+    void TCPServer::HandleAccept(const TCPConnection_Data& connection, const boost::system::error_code& ec) {
         if (!ec) {
             // Reading username
             std::array<char, 128> usernameBuff {};
-            std::streamsize len = (std::streamsize)connection->getSocket().read_some(buffer(usernameBuff));
+            std::streamsize len = (std::streamsize)connection.pConnection->getSocket().read_some(buffer(usernameBuff));
             std::string sUsername = std::string(usernameBuff.data(), len);
 
             LOG_LINE("Connection established with user " << "\'" << sUsername << "\'");
 
             // Sending welcome message
             std::string sWelcomeMessage = "Welcome, " + sUsername + "!\n";
-            write(connection->getSocket(), buffer(sWelcomeMessage));
+            write(connection.pConnection->getSocket(), buffer(sWelcomeMessage));
             LOG_LINE("Welcome sent");
 
             // Broadcasting new connection
             this->Broadcast("User " + sUsername + " has joined\n");
 
-            connection->Start([this](const std::string& sMessage) {
-                this->Broadcast(sMessage + "\n");
-            });
+            connection.pConnection->Start(
+                [this](const std::string& sMessage) {
+                    this->Broadcast(sMessage + "\n");
+                },
+                [this, connection, &sUsername]() {
+                    if (this->m_Connections.erase(
+                        std::find_if(
+                            m_Connections.begin(), m_Connections.end(),
+                            [this, connection](const TCPConnection_Data& c) {
+                                return c.ID == connection.ID;
+                            }
+                        )
+                    ) != m_Connections.end()) {
+                        this->Broadcast("User " + sUsername + " has left.\n");
+                    }
+                }
+            );
         }
         else
             LOG_LINE(ec.what());

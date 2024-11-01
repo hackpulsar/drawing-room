@@ -14,19 +14,19 @@ namespace Core::Networking {
     public:
         explicit TCPServer(int port);
         ~TCPServer();
-
+        
         void StartAccept();
 
         void Broadcast(const std::string& sMessage) const;
 
     private:
-        void HandleAccept(const TCPConnection::pointer& connection, const boost::system::error_code& ec);
+        void HandleAccept(const TCPConnection_Data& connection, const boost::system::error_code& ec);
 
         int m_nPort;
         io_context m_IOContext;
         tcp::acceptor m_Acceptor;
 
-        std::vector<TCPConnection::pointer> m_Connections;
+        std::vector<TCPConnection_Data> m_Connections;
 
     };
 }

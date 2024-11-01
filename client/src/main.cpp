@@ -1,30 +1,24 @@
-// Dear ImGui: standalone example application for GLFW + OpenGL 3, using programmable pipeline
-// (GLFW is a cross-platform general purpose library for handling windows, inputs, OpenGL/Vulkan/Metal graphics context creation, etc.)
-
-// Learn about Dear ImGui:
-// - FAQ                  https://dearimgui.com/faq
-// - Getting Started      https://dearimgui.com/getting-started
-// - Documentation        https://dearimgui.com/docs (same as your local docs/ folder).
-// - Introduction, links and more at the top of imgui.cpp
-
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
-#include <stdio.h>
+#include "misc/cpp/imgui_stdlib.h"
+
+#include <boost/asio.hpp>
+
+#include <cstdio>
+#include <string>
+
 #define GL_SILENCE_DEPRECATION
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <GLES2/gl2.h>
 #endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
+#include <utils/log.h>
 
-// [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to maximize ease of testing and compatibility with old VS compilers.
-// To link with VS2010-era libraries, VS2015+ requires linking with legacy_stdio_definitions.lib, which we do using this pragma.
-// Your own project should not be affected, as you are likely to link with a newer binary of GLFW that is adequate for your version of Visual Studio.
 #if defined(_MSC_VER) && (_MSC_VER >= 1900) && !defined(IMGUI_DISABLE_WIN32_FUNCTIONS)
 #pragma comment(lib, "legacy_stdio_definitions")
 #endif
 
-// This example can also compile and run with Emscripten! See 'Makefile.emscripten' for details.
 #ifdef __EMSCRIPTEN__
 #include "../libs/emscripten/emscripten_mainloop_stub.h"
 #endif
@@ -34,7 +28,6 @@ static void glfw_error_callback(int error, const char* description)
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
-// Main code
 int main(int, char**)
 {
     glfwSetErrorCallback(glfw_error_callback);
@@ -65,7 +58,7 @@ int main(int, char**)
 #endif
 
     // Create window with graphics context
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "Dear ImGui GLFW+OpenGL3 example", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(1280, 720, "Drawing room by @hackpulsar", nullptr, nullptr);
     if (window == nullptr)
         return 1;
     glfwMakeContextCurrent(window);
@@ -77,6 +70,7 @@ int main(int, char**)
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    io.FontGlobalScale = 1.25f;
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
@@ -89,43 +83,26 @@ int main(int, char**)
 #endif
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    // Load Fonts
-    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-    // - If the file cannot be loaded, the function will return a nullptr. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-    // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
-    // - Use '#define IMGUI_ENABLE_FREETYPE' in your imconfig file to use Freetype for higher quality font rendering.
-    // - Read 'docs/FONTS.md' for more instructions and details.
-    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-    // - Our Emscripten build process allows embedding fonts to be accessible at runtime from the "fonts/" folder. See Makefile.emscripten for details.
-    //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\segoeui.ttf", 18.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
-    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
-    //IM_ASSERT(font != nullptr);
-
-    // Our state
-    bool show_demo_window = true;
-    bool show_another_window = false;
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    ImVec4 clear_color = ImVec4(0.60f, 0.60f, 0.60f, 1.00f);
 
     // Main loop
 #ifdef __EMSCRIPTEN__
-    // For an Emscripten build we are disabling file-system access, so let's not attempt to do a fopen() of the imgui.ini file.
-    // You may manually call LoadIniSettingsFromMemory() to load settings from your own storage.
     io.IniFilename = nullptr;
     EMSCRIPTEN_MAINLOOP_BEGIN
 #else
+
+    std::string sAdress = "localhost", sPort = "1488", sUsername = "test";
+    std::vector<std::string> chat;
+
+    boost::asio::io_context ctx;
+    boost::asio::ip::tcp::socket socket(ctx);
+
+    bool bConnected = false, bServerOpen = false;
+    boost::asio::streambuf buff;
+
     while (!glfwWindowShouldClose(window))
 #endif
     {
-        // Poll and handle events (inputs, window resize, etc.)
-        // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-        // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
-        // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
-        // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
         glfwPollEvents();
         if (glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0)
         {
@@ -138,49 +115,65 @@ int main(int, char**)
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-        if (show_demo_window)
-            ImGui::ShowDemoWindow(&show_demo_window);
+        ImGui::Begin("Lobby", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
 
-        // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
-        {
-            static float f = 0.0f;
-            static int counter = 0;
+        if (!bConnected) {
+            ImGui::InputText("Adress", &sAdress);
+            ImGui::InputText("Port", &sPort);
+            ImGui::InputText("Username", &sUsername);
 
-            ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+            if (ImGui::Button("Connect")) {
+                boost::asio::ip::tcp::resolver resolver(ctx);
+                auto endpoint = resolver.resolve({sAdress, sPort});
 
-            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-            ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-            ImGui::Checkbox("Another Window", &show_another_window);
+                boost::system::error_code ec;
+                boost::asio::connect(socket, endpoint, ec);
 
-            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+                if (!ec) {
+                    // Connection established
+                    boost::asio::write(socket, boost::asio::buffer(sUsername), ec);
 
-            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-                counter++;
-            ImGui::SameLine();
-            ImGui::Text("counter = %d", counter);
+                    // Reading response
+                    std::array<char, 128> buffer {};
+                    std::streamsize len = (std::streamsize)socket.read_some(boost::asio::buffer(buffer), ec);
 
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-            ImGui::End();
+                    if (!ec) {
+                        chat.emplace_back(buffer.data(), len);
+                        bConnected = true;
+                    }
+                    else
+                        LOG_LINE(ec.what());
+
+                    // TODO: reading thread or async read
+                }
+                else {
+                    LOG_LINE("Error connecting: " << ec.what());
+                    socket.close();
+                }
+            }
+        }
+        else {
+            ImGui::Text("Lobby");
+            ImGui::BeginChild("Scrolling");
+            for (const auto& m : chat) {
+                ImGui::Text("%s", m.c_str());
+            }
+            ImGui::EndChild();
         }
 
-        // 3. Show another simple window.
-        if (show_another_window)
-        {
-            ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-            ImGui::Text("Hello from another window!");
-            if (ImGui::Button("Close Me"))
-                show_another_window = false;
-            ImGui::End();
-        }
+        ImGui::End();
 
         // Rendering
         ImGui::Render();
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
-        glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+        glClearColor(
+            clear_color.x * clear_color.w,
+            clear_color.y * clear_color.w,
+            clear_color.z * clear_color.w,
+            clear_color.w
+        );
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -198,66 +191,9 @@ int main(int, char**)
     glfwDestroyWindow(window);
     glfwTerminate();
 
+    if (bConnected)
+        socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both);
+    socket.close();
+
     return 0;
 }
-
-/*int main() {
-    boost::asio::io_context ctx;
-    boost::asio::ip::tcp::resolver resolver(ctx);
-    auto endpoint = resolver.resolve({"127.0.0.1", "1488"});
-
-    boost::asio::ip::tcp::socket socket(ctx);
-    boost::asio::connect(socket, endpoint);
-
-    boost::system::error_code ec;
-
-    // Sending username to a server
-    LOG("Username: ");
-    std::string sUsername;
-    std::getline(std::cin, sUsername);
-
-    boost::asio::write(socket, boost::asio::buffer(sUsername), ec);
-
-    // Reading response
-    std::array<char, 128> buffer {};
-    std::streamsize len = (std::streamsize)socket.read_some(boost::asio::buffer(buffer), ec);
-
-    if (!ec)
-        std::cout.write(buffer.data(), len);
-    else
-        LOG_LINE(ec.what());
-
-    boost::asio::streambuf buff;
-    bool bServerOpen = true;
-
-    // Launching reading thread
-    std::thread readingThread([&]() {
-        while (true) {
-            read_until(socket, buff, "\n");
-            if (!ec) {
-                std::istream is(&buff);
-                std::string message;
-                std::getline(is, message);
-                LOG_LINE(message);
-            }
-            else if (ec == boost::asio::error::eof) {
-                bServerOpen = false;
-                break;
-            }
-            else
-                break;
-        }
-    });
-
-    std::string sMessage;
-    do {
-        if (socket.is_open() == false) break;
-
-        if (bServerOpen) {
-            std::getline(std::cin, sMessage);
-            boost::asio::write(socket, boost::asio::buffer(sUsername + ": " + sMessage + "\n"), ec);
-        }
-    } while(sMessage != "/exit" && bServerOpen);
-
-    return 0;
-}*/
