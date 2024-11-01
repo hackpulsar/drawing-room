@@ -16,7 +16,7 @@ namespace Core::Networking {
     }
 
     typedef std::function<void(const std::string&)> MessageCallback;
-    typedef std::function<void()> ErrorHandler;
+    typedef std::function<void()> ErrorCallback;
 
     class TCPConnection : public boost::enable_shared_from_this<TCPConnection> {
     public:
@@ -29,9 +29,9 @@ namespace Core::Networking {
             return pointer(new TCPConnection(context));
         }
 
-        void Start(MessageCallback&& msgCallback, ErrorHandler&& errorCallback);
+        void Start(MessageCallback&& msgCallback, ErrorCallback&& errorCallback);
 
-        void Post(const std::string& sMessage);
+        void Post(const std::string& message);
 
         tcp::socket& getSocket();
 
@@ -39,22 +39,17 @@ namespace Core::Networking {
         void OnRead();
         void OnWrite();
 
-        void HandleRead(const boost::system::error_code& ec, std::size_t nBytesTransferred);
-        void HandleWrite(const boost::system::error_code& ec, std::size_t nBytesTransferred);
+        void HandleRead(const boost::system::error_code& ec, std::size_t bytesTransferred);
+        void HandleWrite(const boost::system::error_code& ec, std::size_t bytesTransferred);
 
-        tcp::socket m_Socket;
-        streambuf m_Buffer { Settings::MESSAGE_MAX_SIZE };
+        tcp::socket socket;
+        streambuf streamBuffer { Settings::MESSAGE_MAX_SIZE };
 
-        std::stack<std::string> m_PendingMessages;
+        std::stack<std::string> pendingMessages;
 
-        MessageCallback m_MessageCallback;
-        ErrorHandler m_ErrorCallback;
+        MessageCallback messageCallback;
+        ErrorCallback errorCallback;
 
-    };
-
-    struct TCPConnection_Data {
-        boost::shared_ptr<TCPConnection> pConnection;
-        size_t ID;
     };
 }
 

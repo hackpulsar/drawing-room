@@ -3,7 +3,7 @@
 #include "imgui_impl_opengl3.h"
 #include "misc/cpp/imgui_stdlib.h"
 
-#include <boost/asio.hpp>
+#include "networking/TCPClient.h"
 
 #include <cstdio>
 #include <string>
@@ -91,14 +91,11 @@ int main(int, char**)
     EMSCRIPTEN_MAINLOOP_BEGIN
 #else
 
-    std::string sAdress = "localhost", sPort = "1488", sUsername = "test";
+    std::string adress = "localhost", port = "1488", username = "test";
     std::vector<std::string> chat;
+    std::string message;
 
-    boost::asio::io_context ctx;
-    boost::asio::ip::tcp::socket socket(ctx);
-
-    bool bConnected = false, bServerOpen = false;
-    boost::asio::streambuf buff;
+    Core::Networking::TCPClient client;
 
     while (!glfwWindowShouldClose(window))
 #endif
@@ -115,53 +112,52 @@ int main(int, char**)
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin("Lobby", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
+        if (!client.IsConnected()) {
+            ImGui::Begin("Lobby", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize);
 
-        if (!bConnected) {
-            ImGui::InputText("Adress", &sAdress);
-            ImGui::InputText("Port", &sPort);
-            ImGui::InputText("Username", &sUsername);
+            ImGui::InputText("Adress", &adress);
+            ImGui::InputText("Port", &port);
+            ImGui::InputText("Username", &username);
 
             if (ImGui::Button("Connect")) {
-                boost::asio::ip::tcp::resolver resolver(ctx);
-                auto endpoint = resolver.resolve({sAdress, sPort});
-
-                boost::system::error_code ec;
-                boost::asio::connect(socket, endpoint, ec);
-
+                auto ec = client.ConnectTo(adress, port);
                 if (!ec) {
-                    // Connection established
-                    boost::asio::write(socket, boost::asio::buffer(sUsername), ec);
+                    if (client.SendString(username)) LOG_LINE("Failed to send username");
 
-                    // Reading response
-                    std::array<char, 128> buffer {};
-                    std::streamsize len = (std::streamsize)socket.read_some(boost::asio::buffer(buffer), ec);
-
-                    if (!ec) {
+                    /*if (!ec) {
                         chat.emplace_back(buffer.data(), len);
                         bConnected = true;
                     }
                     else
-                        LOG_LINE(ec.what());
+                        LOG_LINE(ec.what());*/
 
                     // TODO: reading thread or async read
                 }
                 else {
                     LOG_LINE("Error connecting: " << ec.what());
-                    socket.close();
                 }
             }
+
+            ImGui::End();
         }
         else {
-            ImGui::Text("Lobby");
-            ImGui::BeginChild("Scrolling");
+            ImGui::Begin("Chat", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
+
+            ImGui::BeginChild("Scrolling", ImVec2(0, 400));
             for (const auto& m : chat) {
                 ImGui::Text("%s", m.c_str());
             }
             ImGui::EndChild();
-        }
 
-        ImGui::End();
+            ImGui::InputText(" ", &message);
+            ImGui::SameLine();
+            if (ImGui::Button("Send")) {
+                if (client.SendString(username + ": " + message + "\n"))
+                    LOG_LINE("Error sending message");
+            }
+
+            ImGui::End();
+        }
 
         // Rendering
         ImGui::Render();
@@ -190,10 +186,6 @@ int main(int, char**)
 
     glfwDestroyWindow(window);
     glfwTerminate();
-
-    if (bConnected)
-        socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both);
-    socket.close();
 
     return 0;
 }

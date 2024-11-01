@@ -5,35 +5,35 @@
 
 namespace Core::Networking {
     TCPConnection::TCPConnection(io_context& context)
-        : m_Socket(context)
+        : socket(context)
     {
 
     }
 
     TCPConnection::~TCPConnection() {
-        m_Socket.shutdown(tcp::socket::shutdown_both);
-        m_Socket.close();
+        socket.shutdown(tcp::socket::shutdown_both);
+        socket.close();
     }
 
-    void TCPConnection::Start(MessageCallback&& msgCallback, ErrorHandler&& errorHandler) {
-        m_MessageCallback = std::move(msgCallback);
-        m_ErrorCallback = std::move(errorHandler);
+    void TCPConnection::Start(MessageCallback&& msgCallback, ErrorCallback&& errorHandler) {
+        messageCallback = std::move(msgCallback);
+        errorCallback = std::move(errorHandler);
         this->OnRead();
     }
 
-    void TCPConnection::Post(const std::string &sMessage) {
-        bool bQueueIdle = m_PendingMessages.empty();
-        m_PendingMessages.push(sMessage);
+    void TCPConnection::Post(const std::string &message) {
+        bool queueIdle = pendingMessages.empty();
+        pendingMessages.push(message);
 
-        if (bQueueIdle) this->OnWrite();
+        if (queueIdle) this->OnWrite();
     }
 
-    tcp::socket& TCPConnection::getSocket() { return m_Socket; }
+    tcp::socket& TCPConnection::getSocket() { return socket; }
 
     void TCPConnection::OnRead() {
         async_read_until(
-            m_Socket,
-            m_Buffer, "\n",
+            socket,
+            streamBuffer, "\n",
             boost::bind(
                 &TCPConnection::HandleRead,
                 shared_from_this(),
@@ -45,8 +45,8 @@ namespace Core::Networking {
 
     void TCPConnection::OnWrite() {
         async_write(
-            m_Socket,
-            buffer(m_PendingMessages.top()),
+            socket,
+            buffer(pendingMessages.top()),
             boost::bind(
                 &TCPConnection::HandleWrite,
                 shared_from_this(),
@@ -56,45 +56,45 @@ namespace Core::Networking {
         );
     }
 
-    void TCPConnection::HandleRead(const boost::system::error_code &ec, std::size_t nBytesTransferred) {
+    void TCPConnection::HandleRead(const boost::system::error_code &ec, std::size_t bytesTransferred) {
         if (!ec) {
             std::string message(
-                buffers_begin(m_Buffer.data()),
-                buffers_begin(m_Buffer.data()) + nBytesTransferred - 1
+                buffers_begin(streamBuffer.data()),
+                buffers_begin(streamBuffer.data()) + bytesTransferred - 1
             );
-            m_Buffer.consume(nBytesTransferred);
+            streamBuffer.consume(bytesTransferred);
 
             if (message == "/exit") {
-                m_Socket.shutdown(tcp::socket::shutdown_both);
-                m_Socket.close();
+                socket.shutdown(tcp::socket::shutdown_both);
+                socket.close();
                 return;
             }
 
             LOG_LINE(message);
-            m_MessageCallback(message);
+            messageCallback(message);
         }
         else if (ec == error::eof) {
-            m_ErrorCallback();
-            m_Socket.close();
+            errorCallback();
+            socket.close();
             return;
         }
         else {
             LOG_LINE(ec.what());
-            m_Socket.close();
+            socket.close();
             return;
         }
 
         this->OnRead();
     }
 
-    void TCPConnection::HandleWrite(const boost::system::error_code &ec, std::size_t nBytesTransferred) {
+    void TCPConnection::HandleWrite(const boost::system::error_code &ec, std::size_t bytesTransferred) {
         if (!ec) {
-            m_PendingMessages.pop();
-            if (!m_PendingMessages.empty()) this->OnWrite();
+            pendingMessages.pop();
+            if (!pendingMessages.empty()) this->OnWrite();
         }
         else {
             LOG_LINE("HandleWrite " << ec.what());
-            m_Socket.close();
+            socket.close();
         }
     }
 }

@@ -10,6 +10,12 @@ namespace Core::Networking {
 
     using namespace boost::asio;
 
+    struct TCPConnection_Data {
+        TCPConnection::pointer connection;
+        size_t ID;
+        std::string username;
+    };
+
     class TCPServer {
     public:
         explicit TCPServer(int port);
@@ -17,16 +23,16 @@ namespace Core::Networking {
         
         void StartAccept();
 
-        void Broadcast(const std::string& sMessage) const;
+        void Broadcast(const std::string& message) const;
 
     private:
-        void HandleAccept(const TCPConnection_Data& connection, const boost::system::error_code& ec);
+        void HandleAccept(TCPConnection_Data& connection, const boost::system::error_code& ec);
 
-        int m_nPort;
-        io_context m_IOContext;
-        tcp::acceptor m_Acceptor;
+        int port;
+        io_context IOContext;
+        tcp::acceptor acceptor;
 
-        std::vector<TCPConnection_Data> m_Connections;
+        std::vector<TCPConnection_Data> connections;
 
     };
 }
