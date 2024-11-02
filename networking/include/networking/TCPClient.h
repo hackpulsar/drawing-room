@@ -20,6 +20,7 @@ namespace Core::Networking {
         void SendString(const std::string& message);
 
         void StartReading();
+        void Stop();
 
         bool IsConnected() const;
 

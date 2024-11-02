@@ -53,6 +53,10 @@ namespace Core::Networking {
         IOContext.run();
     }
 
+    void TCPClient::Stop() {
+        IOContext.stop();
+    }
+
     bool TCPClient::IsConnected() const { return connected; }
 
     void TCPClient::OnMessageReceived(const boost::system::error_code& ec, std::size_t bytesTransferred) {

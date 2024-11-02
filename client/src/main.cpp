@@ -150,6 +150,81 @@ int main(int, char**)
             }
 
             ImGui::End();
+
+            ImGui::Begin("Board", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
+
+            ImGui::BeginChild("Canvas", ImVec2(800, 600));
+
+            static ImVector<ImVec2> points;
+            static ImVec2 scrolling(0.0f, 0.0f);
+            static bool enableGrid = true;
+            static bool addingLine = false;
+
+            static bool isDrawing = false;
+
+            ImVec2 canvas_p0 = ImGui::GetCursorScreenPos();
+            ImVec2 canvas_sz = ImGui::GetContentRegionAvail();
+            if (canvas_sz.x < 50.0f) canvas_sz.x = 50.0f;
+            if (canvas_sz.y < 50.0f) canvas_sz.y = 50.0f;
+            ImVec2 canvas_p1 = ImVec2(canvas_p0.x + canvas_sz.x, canvas_p0.y + canvas_sz.y);
+
+            // Draw borders and background
+            ImDrawList* draw_list = ImGui::GetWindowDrawList();
+            draw_list->AddRectFilled(canvas_p0, canvas_p1, IM_COL32(50, 50, 50, 255));
+            draw_list->AddRect(canvas_p0, canvas_p1, IM_COL32(255, 255, 255, 255));
+
+            // Interactions
+            ImGui::InvisibleButton("canvas", canvas_sz, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
+            const bool isHovered = ImGui::IsItemHovered(); // Hovered
+            const bool isActive = ImGui::IsItemActive();   // Held
+            const ImVec2 origin(canvas_p0.x + scrolling.x, canvas_p0.y + scrolling.y); // Lock scrolled origin
+            const ImVec2 mouse_pos_in_canvas(io.MousePos.x - origin.x, io.MousePos.y - origin.y);
+
+            if (isHovered && isActive && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f) && !isDrawing) {
+                points.push_back(mouse_pos_in_canvas);
+                points.push_back(mouse_pos_in_canvas);
+                isDrawing = true;
+            }
+
+            if (isDrawing) {
+                if (sqrtf(powf(points.back().x - mouse_pos_in_canvas.x, 2) + powf(points.back().y - mouse_pos_in_canvas.y, 2)) > 5.0f) {
+                    points.back() = mouse_pos_in_canvas;
+                    points.push_back(mouse_pos_in_canvas);
+                    points.push_back(mouse_pos_in_canvas);
+                }
+
+                if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+                    isDrawing = false;
+            }
+
+            if (isActive && ImGui::IsMouseDragging(ImGuiMouseButton_Right, 0.0f))
+            {
+                scrolling.x += io.MouseDelta.x;
+                scrolling.y += io.MouseDelta.y;
+            }
+
+            // Draw grid and lines
+            draw_list->PushClipRect(canvas_p0, canvas_p1, true);
+            if (enableGrid)
+            {
+                const float GRID_STEP = 64.0f;
+                for (float x = fmodf(scrolling.x, GRID_STEP); x < canvas_sz.x; x += GRID_STEP)
+                    draw_list->AddLine(ImVec2(canvas_p0.x + x, canvas_p0.y), ImVec2(canvas_p0.x + x, canvas_p1.y), IM_COL32(200, 200, 200, 40));
+                for (float y = fmodf(scrolling.y, GRID_STEP); y < canvas_sz.y; y += GRID_STEP)
+                    draw_list->AddLine(ImVec2(canvas_p0.x, canvas_p0.y + y), ImVec2(canvas_p1.x, canvas_p0.y + y), IM_COL32(200, 200, 200, 40));
+            }
+            for (int i = 0; i < points.Size; i += 2)
+                draw_list->AddLine(
+                    ImVec2(origin.x + points[i].x, origin.y + points[i].y),
+                    ImVec2(origin.x + points[i + 1].x, origin.y + points[i + 1].y),
+                    IM_COL32(255, 255, 0, 255),
+                    2.0f
+                );
+            draw_list->PopClipRect();
+
+            ImGui::EndChild();
+
+            ImGui::End();
         }
 
         // Rendering
@@ -180,6 +255,7 @@ int main(int, char**)
     glfwDestroyWindow(window);
     glfwTerminate();
 
+    client.Stop();
     clientThread.join();
 
     return 0;
