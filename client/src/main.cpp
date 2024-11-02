@@ -98,6 +98,7 @@ int main(int, char**)
     Core::Networking::TCPClient client;
     client.msgRecCallback = [&chat] (const std::string& message) { chat.push_back(message); };
     std::thread clientThread;
+    std::atomic connecting(false);
 
     while (!glfwWindowShouldClose(window))
 #endif
@@ -114,22 +115,33 @@ int main(int, char**)
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        if (!client.IsConnected()) {
+        if (!client.IsConnected() || connecting) {
             ImGui::Begin("Lobby", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize);
 
             ImGui::InputText("Address", &adress);
             ImGui::InputText("Port", &port);
             ImGui::InputText("Username", &username);
 
-            if (ImGui::Button("Connect")) {
-                auto ec = client.ConnectTo(adress, port);
-                if (!ec) {
-                    client.SendString(username);
-                    clientThread = std::thread([&client] { client.StartReading(); });
+            if (!connecting) {
+                if (ImGui::Button("Connect")) {
+                    client.SetUsername(username);
+                    connecting = true;
+                    auto ec = client.ConnectTo(adress, port);
+
+                    if (!ec) {
+                        clientThread = std::thread([&client, &connecting] {
+                            if (client.Handshake()) {
+                                connecting = false;
+                                client.StartReading();
+                            }
+                        });
+                    }
+                    else
+                        LOG_LINE("Error connecting: " << ec.what());
                 }
-                else
-                    LOG_LINE("Error connecting: " << ec.what());
             }
+            else
+                ImGui::ProgressBar(-1.0f * (float)ImGui::GetTime(), ImVec2(0.0f, 0.0f), "Connecting..");
 
             ImGui::End();
         }
@@ -145,7 +157,7 @@ int main(int, char**)
             ImGui::InputText(" ", &message);
             ImGui::SameLine();
             if (ImGui::Button("Send")) {
-                client.SendString(message + "\n");
+                client.AsyncSendString(message + "\n");
                 message = "";
             }
 
@@ -155,17 +167,13 @@ int main(int, char**)
 
             ImGui::BeginChild("Canvas", ImVec2(800, 600));
 
-            static ImVector<ImVec2> points;
+            static ImVector<ImVector<ImVec2>> lines;
             static ImVec2 scrolling(0.0f, 0.0f);
             static bool enableGrid = true;
-            static bool addingLine = false;
-
             static bool isDrawing = false;
 
             ImVec2 canvas_p0 = ImGui::GetCursorScreenPos();
             ImVec2 canvas_sz = ImGui::GetContentRegionAvail();
-            if (canvas_sz.x < 50.0f) canvas_sz.x = 50.0f;
-            if (canvas_sz.y < 50.0f) canvas_sz.y = 50.0f;
             ImVec2 canvas_p1 = ImVec2(canvas_p0.x + canvas_sz.x, canvas_p0.y + canvas_sz.y);
 
             // Draw borders and background
@@ -180,17 +188,24 @@ int main(int, char**)
             const ImVec2 origin(canvas_p0.x + scrolling.x, canvas_p0.y + scrolling.y); // Lock scrolled origin
             const ImVec2 mouse_pos_in_canvas(io.MousePos.x - origin.x, io.MousePos.y - origin.y);
 
+            static ImVec2 lastPoint;
+
             if (isHovered && isActive && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f) && !isDrawing) {
-                points.push_back(mouse_pos_in_canvas);
-                points.push_back(mouse_pos_in_canvas);
+                // Create new line
+                lines.push_back(ImVector<ImVec2>{});
+                lines.back().push_back(mouse_pos_in_canvas);
+                lines.back().push_back(mouse_pos_in_canvas);
+
                 isDrawing = true;
+                lastPoint = lines.back().back();
             }
 
             if (isDrawing) {
-                if (sqrtf(powf(points.back().x - mouse_pos_in_canvas.x, 2) + powf(points.back().y - mouse_pos_in_canvas.y, 2)) > 5.0f) {
-                    points.back() = mouse_pos_in_canvas;
-                    points.push_back(mouse_pos_in_canvas);
-                    points.push_back(mouse_pos_in_canvas);
+                lines.back().back() = mouse_pos_in_canvas;
+
+                if (sqrtf(powf(lastPoint.x - mouse_pos_in_canvas.x, 2) + powf(lastPoint.y - mouse_pos_in_canvas.y, 2)) > 8.0f) {
+                    lines.back().push_back(mouse_pos_in_canvas);
+                    lastPoint = lines.back().back();
                 }
 
                 if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
@@ -203,7 +218,7 @@ int main(int, char**)
                 scrolling.y += io.MouseDelta.y;
             }
 
-            // Draw grid and lines
+            // Draw grid
             draw_list->PushClipRect(canvas_p0, canvas_p1, true);
             if (enableGrid)
             {
@@ -213,17 +228,21 @@ int main(int, char**)
                 for (float y = fmodf(scrolling.y, GRID_STEP); y < canvas_sz.y; y += GRID_STEP)
                     draw_list->AddLine(ImVec2(canvas_p0.x, canvas_p0.y + y), ImVec2(canvas_p1.x, canvas_p0.y + y), IM_COL32(200, 200, 200, 40));
             }
-            for (int i = 0; i < points.Size; i += 2)
-                draw_list->AddLine(
-                    ImVec2(origin.x + points[i].x, origin.y + points[i].y),
-                    ImVec2(origin.x + points[i + 1].x, origin.y + points[i + 1].y),
-                    IM_COL32(255, 255, 0, 255),
-                    2.0f
-                );
+
+            // Draw lines
+            for (const auto& line : lines) {
+                for (int i = 0; i < line.size() - 1; i++) {
+                    draw_list->AddLine(
+                        ImVec2(origin.x + line[i].x, origin.y + line[i].y),
+                        ImVec2(origin.x + line[i + 1].x, origin.y + line[i + 1].y),
+                        IM_COL32(255, 255, 0, 255),
+                        2.0f
+                    );
+                }
+            }
             draw_list->PopClipRect();
 
             ImGui::EndChild();
-
             ImGui::End();
         }
 

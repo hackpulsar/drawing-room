@@ -48,19 +48,19 @@ namespace Core::Networking {
             // Reading username
             std::array<char, 128> usernameBuff {};
             std::streamsize len = (std::streamsize)connection.connection->getSocket().read_some(buffer(usernameBuff));
-            std::string sUsername = std::string(usernameBuff.data(), len);
+            std::string username = std::string(usernameBuff.data(), len);
 
-            connection.username = sUsername;
-            LOG_LINE("Connection established with user " << "\'" << sUsername << "\'");
+            connection.username = username;
+            LOG_LINE("Connection established with user " << "\'" << username << "\'");
 
             // Sending welcome message
-            std::string sWelcomeMessage = "[Server]: Welcome, " + sUsername + "!\n";
-            write(connection.connection->getSocket(), buffer(sWelcomeMessage));
+            std::string welcomeMessage = "[Server]: Welcome, " + username + "!\n";
+            write(connection.connection->getSocket(), buffer(welcomeMessage));
             LOG_LINE("Welcome sent");
 
             connection.connection->Start(
-                [this, connection](const std::string& sMessage) {
-                    this->Broadcast(connection.username + ": " + sMessage + "\n");
+                [this, connection](const std::string& message) {
+                    this->Broadcast(connection.username + ": " + message + "\n");
                 },
                 [this, connection]() {
                     if (this->connections.erase(
@@ -78,7 +78,7 @@ namespace Core::Networking {
             );
 
             // Broadcasting new connection
-            this->Broadcast("User " + sUsername + " has joined.\n");
+            this->Broadcast("User " + username + " has joined.\n");
         }
         else
             LOG_LINE(ec.what());

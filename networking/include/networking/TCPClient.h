@@ -16,13 +16,19 @@ namespace Core::Networking {
         ~TCPClient();
 
         boost::system::error_code ConnectTo(const std::string& address, const std::string& port);
+        bool Handshake();
 
-        void SendString(const std::string& message);
+        boost::system::error_code SendString(const std::string& message);
+        void AsyncSendString(const std::string& message);
+
+        boost::system::error_code ReadStringUntil(char delimiter);
 
         void StartReading();
         void Stop();
 
         bool IsConnected() const;
+
+        void SetUsername(const std::string& username);
 
         MessageReceivedCallback msgRecCallback;
 

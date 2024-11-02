@@ -30,7 +30,28 @@ namespace Core::Networking {
         return ec;
     }
 
-    void TCPClient::SendString(const std::string &message) {
+    bool TCPClient::Handshake() {
+        if(this->SendString(username)) return false;
+
+        if (this->ReadStringUntil('\n'))
+            return false;
+
+        // Received a string
+        std::istream is(&streamBuffer);
+        std::string message;
+        std::getline(is, message);
+        msgRecCallback(message);
+
+        return true;
+    }
+
+    boost::system::error_code TCPClient::SendString(const std::string &message) {
+        boost::system::error_code ec;
+        write(socket, buffer(message), ec);
+        return ec;
+    }
+
+    void TCPClient::AsyncSendString(const std::string &message) {
         async_write(
             socket, buffer(message),
             [this](boost::system::error_code e, size_t bytes_transferred) {
@@ -40,6 +61,12 @@ namespace Core::Networking {
                 }
             }
         );
+    }
+
+    boost::system::error_code TCPClient::ReadStringUntil(char delimiter) {
+        boost::system::error_code ec;
+        read_until(socket, streamBuffer, delimiter, ec);
+        return ec;
     }
 
     void TCPClient::StartReading() {
@@ -58,6 +85,8 @@ namespace Core::Networking {
     }
 
     bool TCPClient::IsConnected() const { return connected; }
+
+    void TCPClient::SetUsername(const std::string &username) { this->username = username; }
 
     void TCPClient::OnMessageReceived(const boost::system::error_code& ec, std::size_t bytesTransferred) {
         if (!ec) {
