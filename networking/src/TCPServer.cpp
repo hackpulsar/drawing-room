@@ -78,7 +78,7 @@ namespace Core::Networking {
             );
 
             // Broadcasting new connection
-            this->Broadcast("User " + sUsername + " has joined\n");
+            this->Broadcast("User " + sUsername + " has joined.\n");
         }
         else
             LOG_LINE(ec.what());

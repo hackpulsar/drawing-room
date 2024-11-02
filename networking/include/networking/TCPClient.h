@@ -3,28 +3,38 @@
 
 #include <boost/asio.hpp>
 
+#include "utils/settings.h"
+
 namespace Core::Networking {
     using namespace boost::asio;
 
-    typedef std::function<void()> MessageReceivedCallback;
+    typedef std::function<void(const std::string&)> MessageReceivedCallback;
 
     class TCPClient {
     public:
-        TCPClient();
+        explicit TCPClient();
         ~TCPClient();
 
         boost::system::error_code ConnectTo(const std::string& address, const std::string& port);
-        boost::system::error_code SendString(const std::string& message);
+
+        void SendString(const std::string& message);
+
+        void StartReading();
 
         bool IsConnected() const;
 
+        MessageReceivedCallback msgRecCallback;
+
     private:
-        io_context IOContext;
+        void OnMessageReceived(const boost::system::error_code& ec, std::size_t bytesTransferred);
+
+        io_context IOContext {};
+
         ip::tcp::endpoint endpoint;
         ip::tcp::socket socket;
 
+        streambuf streamBuffer { Settings::MESSAGE_MAX_SIZE };
         bool connected = false;
-
         std::string username;
     };
 }

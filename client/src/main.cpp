@@ -96,6 +96,8 @@ int main(int, char**)
     std::string message;
 
     Core::Networking::TCPClient client;
+    client.msgRecCallback = [&chat] (const std::string& message) { chat.push_back(message); };
+    std::thread clientThread;
 
     while (!glfwWindowShouldClose(window))
 #endif
@@ -115,27 +117,18 @@ int main(int, char**)
         if (!client.IsConnected()) {
             ImGui::Begin("Lobby", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize);
 
-            ImGui::InputText("Adress", &adress);
+            ImGui::InputText("Address", &adress);
             ImGui::InputText("Port", &port);
             ImGui::InputText("Username", &username);
 
             if (ImGui::Button("Connect")) {
                 auto ec = client.ConnectTo(adress, port);
                 if (!ec) {
-                    if (client.SendString(username)) LOG_LINE("Failed to send username");
-
-                    /*if (!ec) {
-                        chat.emplace_back(buffer.data(), len);
-                        bConnected = true;
-                    }
-                    else
-                        LOG_LINE(ec.what());*/
-
-                    // TODO: reading thread or async read
+                    client.SendString(username);
+                    clientThread = std::thread([&client] { client.StartReading(); });
                 }
-                else {
+                else
                     LOG_LINE("Error connecting: " << ec.what());
-                }
             }
 
             ImGui::End();
@@ -152,8 +145,8 @@ int main(int, char**)
             ImGui::InputText(" ", &message);
             ImGui::SameLine();
             if (ImGui::Button("Send")) {
-                if (client.SendString(username + ": " + message + "\n"))
-                    LOG_LINE("Error sending message");
+                client.SendString(message + "\n");
+                message = "";
             }
 
             ImGui::End();
@@ -186,6 +179,8 @@ int main(int, char**)
 
     glfwDestroyWindow(window);
     glfwTerminate();
+
+    clientThread.join();
 
     return 0;
 }
