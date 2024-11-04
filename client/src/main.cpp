@@ -157,7 +157,14 @@ int main(int, char**)
             ImGui::InputText(" ", &message);
             ImGui::SameLine();
             if (ImGui::Button("Send")) {
-                client.AsyncSendString(message + "\n");
+                using namespace Core::Networking;
+                using namespace Core::Networking::Package;
+
+                client.SendPackage(Core::Networking::ActualPackage {
+                    Header { message.size(), Type::TextMessage },
+                    Body { message + "\n" }
+                });
+                //client.AsyncSendString(message + "\n");
                 message = "";
             }
 
@@ -275,7 +282,8 @@ int main(int, char**)
     glfwTerminate();
 
     client.Stop();
-    clientThread.join();
+    if (clientThread.joinable())
+        clientThread.join();
 
     return 0;
 }
