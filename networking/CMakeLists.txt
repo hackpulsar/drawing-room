@@ -8,6 +8,7 @@ find_package(glfw3 3.4 REQUIRED)
 find_package(OpenGL 3 REQUIRED)
 
 file(GLOB_RECURSE NETWORKING_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+file(GLOB_RECURSE NETWORKING_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/*/*.*")
 file(GLOB IMGUI_SOURCES
         "${CMAKE_SOURCE_DIR}/imgui/*.cpp"
         "${CMAKE_SOURCE_DIR}/imgui/backends/imgui_impl_glfw.cpp"

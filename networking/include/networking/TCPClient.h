@@ -3,7 +3,7 @@
 
 #include <boost/asio.hpp>
 
-#include "TCPPackage.h"
+#include "TCPCommunicative.hpp"
 #include "utils/settings.h"
 
 namespace Core::Networking {
@@ -11,15 +11,13 @@ namespace Core::Networking {
 
     typedef std::function<void(const std::string&)> MessageReceivedCallback;
 
-    class TCPClient {
+    class TCPClient : public TCPCommunicative {
     public:
-        explicit TCPClient();
-        ~TCPClient();
+        TCPClient();
+        ~TCPClient() override;
 
         boost::system::error_code ConnectTo(const std::string& address, const std::string& port);
         bool Handshake();
-
-        bool SendPackage(const ActualPackage& package);
 
         void StartReading();
         void Stop();
@@ -31,17 +29,14 @@ namespace Core::Networking {
         MessageReceivedCallback msgRecCallback;
 
     private:
-        boost::system::error_code SendString(const std::string& message);
         void AsyncSendString(const std::string& message);
 
         boost::system::error_code ReadStringUntil(char delimiter);
 
         void OnMessageReceived(const boost::system::error_code& ec, std::size_t bytesTransferred);
 
-        io_context IOContext {};
-
-        ip::tcp::endpoint endpoint;
-        ip::tcp::socket socket;
+        io_context context {};
+        tcp::endpoint endpoint;
 
         streambuf streamBuffer { Settings::MESSAGE_MAX_SIZE };
         bool connected = false;

@@ -4,21 +4,26 @@
 #include <boost/bind/bind.hpp>
 
 namespace Core::Networking {
-    TCPConnection::TCPConnection(io_context& context)
-        : socket(context)
-    {
-
+    TCPConnection::TCPConnection(io_context& context) {
+        this->socket = new tcp::socket(context);
     }
 
     TCPConnection::~TCPConnection() {
-        socket.shutdown(tcp::socket::shutdown_both);
-        socket.close();
+        socket->shutdown(tcp::socket::shutdown_both);
+        socket->close();
     }
 
     void TCPConnection::Start(MessageCallback&& msgCallback, ErrorCallback&& errorHandler) {
         messageCallback = std::move(msgCallback);
         errorCallback = std::move(errorHandler);
         this->OnRead();
+    }
+
+    void TCPConnection::PostPackage(ActualPackage &&package) {
+        bool queueIdle = pendingPackages.empty();
+        pendingPackages.push(std::move(package));
+
+        if (queueIdle) this->OnSendPackage();
     }
 
     void TCPConnection::Post(const std::string &message) {
@@ -28,11 +33,11 @@ namespace Core::Networking {
         if (queueIdle) this->OnWrite();
     }
 
-    tcp::socket& TCPConnection::getSocket() { return socket; }
+    tcp::socket& TCPConnection::getSocket() { return *socket; }
 
     void TCPConnection::OnRead() {
         async_read_until(
-            socket,
+            *socket,
             streamBuffer, "\n",
             boost::bind(
                 &TCPConnection::HandleRead,
@@ -45,7 +50,7 @@ namespace Core::Networking {
 
     void TCPConnection::OnWrite() {
         async_write(
-            socket,
+            *socket,
             buffer(pendingMessages.top()),
             boost::bind(
                 &TCPConnection::HandleWrite,
@@ -54,6 +59,10 @@ namespace Core::Networking {
                 placeholders::bytes_transferred
             )
         );
+    }
+
+    void TCPConnection::OnSendPackage() {
+
     }
 
     void TCPConnection::HandleRead(const boost::system::error_code &ec, std::size_t bytesTransferred) {
@@ -65,8 +74,8 @@ namespace Core::Networking {
             streamBuffer.consume(bytesTransferred);
 
             if (message == "/exit") {
-                socket.shutdown(tcp::socket::shutdown_both);
-                socket.close();
+                socket->shutdown(tcp::socket::shutdown_both);
+                socket->close();
                 return;
             }
 
@@ -75,12 +84,12 @@ namespace Core::Networking {
         }
         else if (ec == error::eof) {
             errorCallback();
-            socket.close();
+            socket->close();
             return;
         }
         else {
             LOG_LINE(ec.what());
-            socket.close();
+            socket->close();
             return;
         }
 
@@ -94,7 +103,7 @@ namespace Core::Networking {
         }
         else {
             LOG_LINE("HandleWrite " << ec.what());
-            socket.close();
+            socket->close();
         }
     }
 }
