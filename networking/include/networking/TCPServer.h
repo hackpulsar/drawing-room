@@ -23,7 +23,7 @@ namespace Core::Networking {
         
         void StartAccept();
 
-        void BroadcastMessage(const std::string& message) const;
+        void BroadcastMessage(const std::string& message, std::size_t sender) const;
         void Broadcast(const ActualPackage& package) const;
 
     private:

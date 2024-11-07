@@ -11,9 +11,10 @@ namespace Core::Networking {
     using namespace boost::asio;
     using ip::tcp;
 
+    // Starting from 1, because 0 is server's ID.
     inline size_t GetNextConnectionID() {
-        static size_t id = 0;
-        return ++id;
+        static size_t id = 1;
+        return id++;
     }
 
     typedef std::function<void(const ActualPackage&)> PackageCallback;

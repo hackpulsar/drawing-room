@@ -161,7 +161,7 @@ int main(int, char**)
                 using namespace Core::Networking::Package;
 
                 client.AsyncSendPackage(ActualPackage {
-                    Header { message.size(), Type::TextMessage },
+                    Header { message.size(), Type::TextMessage, client.GetID() },
                     Body { message }
                 });
 
@@ -222,7 +222,7 @@ int main(int, char**)
 
                     // Send new line to the server
                     client.AsyncSendPackage(ActualPackage {
-                        Header { lineData.size(), Type::BoardUpdate },
+                        Header { lineData.size(), Type::BoardUpdate, client.GetID() },
                         Body { lineData }
                     });
                 }

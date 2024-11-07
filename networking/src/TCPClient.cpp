@@ -35,11 +35,13 @@ namespace Core::Networking {
         if (this->ReadStringUntil('\n'))
             return false;
 
-        // Received a string
+        // Received an ID.
         std::istream is(&streamBuffer);
         std::string message;
         std::getline(is, message);
-        msgRecCallback(message);
+        id = std::stoi(message);
+
+        LOG_LINE("Received an ID from the server: " << id);
 
         return true;
     }
@@ -63,6 +65,8 @@ namespace Core::Networking {
     bool TCPClient::IsConnected() const { return connected; }
 
     void TCPClient::SetUsername(const std::string &username) { this->username = username; }
+
+    std::size_t TCPClient::GetID() const { return id; }
 
     boost::system::error_code TCPClient::ReadStringUntil(char delimiter) {
         boost::system::error_code ec;

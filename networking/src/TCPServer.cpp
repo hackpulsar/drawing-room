@@ -38,9 +38,9 @@ namespace Core::Networking {
         connections.push_back(newConnectionData);
     }
 
-    void TCPServer::BroadcastMessage(const std::string &message) const {
+    void TCPServer::BroadcastMessage(const std::string &message, std::size_t sender) const {
         this->Broadcast(ActualPackage {
-            Package::Header { message.size(), Package::Type::TextMessage },
+            Package::Header { message.size(), Package::Type::TextMessage, sender },
             Package::Body { message }
         });
     }
@@ -60,12 +60,10 @@ namespace Core::Networking {
             std::string username = std::string(usernameBuff.data(), len);
 
             connection.username = username;
-            LOG_LINE("Connection established with user " << "\'" << username << "\'");
 
-            // Sending welcome message
-            std::string welcomeMessage = "[Server]: Welcome, " + username + "!\n";
-            write(connection.connection->getSocket(), buffer(welcomeMessage));
-            LOG_LINE("Welcome sent");
+            // Sending back user's ID.
+            write(connection.connection->getSocket(), buffer(std::to_string(connection.ID) + "\n"));
+            LOG_LINE("Connection established with user " << "\'" << username << "\', id: " << connection.ID);
 
             connection.connection->Start(
                 [this](const ActualPackage &package) {
@@ -80,14 +78,14 @@ namespace Core::Networking {
                             }
                         )
                     ) != connections.end()) {
-                        this->BroadcastMessage("User " + connection.username + " has left.\n");
+                        this->BroadcastMessage("User " + connection.username + " has left.\n", 0);
                         LOG_LINE("User " + connection.username + " has left.\n");
                     }
                 }
             );
 
             // Broadcasting new connection
-            this->BroadcastMessage("User " + username + " has joined.\n");
+            this->BroadcastMessage("User " + username + " has joined.\n", 0);
         }
         else
             LOG_LINE(ec.what());

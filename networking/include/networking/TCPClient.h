@@ -26,6 +26,8 @@ namespace Core::Networking {
 
         void SetUsername(const std::string& username);
 
+        std::size_t GetID() const;
+
         MessageReceivedCallback msgRecCallback;
 
     private:
@@ -39,6 +41,7 @@ namespace Core::Networking {
         streambuf streamBuffer { Settings::MESSAGE_MAX_SIZE };
         bool connected = false;
         std::string username;
+        std::size_t id;
     };
 }
 
