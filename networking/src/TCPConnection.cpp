@@ -14,6 +14,12 @@ namespace Core::Networking {
         socket->close();
     }
 
+    void TCPConnection::SetID(std::size_t id) { this->id = id; }
+    void TCPConnection::SetUsername(const std::string &username) { this->username = username; }
+
+    std::size_t TCPConnection::GetID() const { return this->id; }
+    const std::string &TCPConnection::GetUsername() const { return this->username; }
+
     void TCPConnection::Start(PackageCallback &&pckgCallback, ErrorCallback &&errorHandler) {
         packageCallback = std::move(pckgCallback);
         errorCallback = std::move(errorHandler);
@@ -69,7 +75,7 @@ namespace Core::Networking {
 
             switch (package.header.type) {
                 case Package::Type::TextMessage:
-                    LOG_LINE(package.body.data);
+                    LOG_LINE("Message from id " << package.header.sender << ": " << package.body.data);
                     break;
                 default:
                     break;

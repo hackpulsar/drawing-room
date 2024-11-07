@@ -15,71 +15,83 @@ namespace Core::Networking {
     TCPServer::~TCPServer() {
         // Close all connections
         LOG_LINE("Server shutdown");
-        for (auto& s : connections) {
-            s.connection->getSocket().shutdown(tcp::socket::shutdown_both);
-            s.connection->getSocket().close();
+        for (auto& c : connections) {
+            c->getSocket().shutdown(tcp::socket::shutdown_both);
+            c->getSocket().close();
         }
         connections.clear();
     }
 
     void TCPServer::StartAccept() {
         TCPConnection::pointer newConnection = TCPConnection::Create(IOContext);
-        TCPConnection_Data newConnectionData = { newConnection, GetNextConnectionID() };
+        newConnection->SetID(GetNextConnectionID());
 
         acceptor.async_accept(
             newConnection->getSocket(),
             boost::bind(
                 &TCPServer::HandleAccept,
-                this, newConnectionData,
+                this, newConnection,
                 placeholders::error
             )
         );
 
-        connections.push_back(newConnectionData);
+        connections.push_back(newConnection);
     }
 
     void TCPServer::BroadcastMessage(const std::string &message, std::size_t sender) const {
+        std::string senderUsername = sender == 0 ? "Server" : "unknown";
+        // Getting a username based on sender's ID.
+        for (auto& c : connections) {
+            if (c->GetID() == sender)
+                senderUsername = c->GetUsername();
+        }
+
         this->Broadcast(ActualPackage {
-            Package::Header { message.size(), Package::Type::TextMessage, sender },
-            Package::Body { message }
+            Package::Header { message.size() + senderUsername.size() + 2, Package::Type::TextMessage, sender },
+            Package::Body { senderUsername + ": " + message }
         });
     }
 
     void TCPServer::Broadcast(const ActualPackage &package) const {
         for (auto& c : connections) {
-            if (c.connection->getSocket().is_open())
-                c.connection->Post(package);
+            if (c->getSocket().is_open())
+                c->Post(package);
         }
     }
 
-    void TCPServer::HandleAccept(TCPConnection_Data& connection, const boost::system::error_code& ec) {
+    void TCPServer::HandleAccept(TCPConnection::pointer& connection, const boost::system::error_code& ec) {
         if (!ec) {
             // Reading username
             std::array<char, 128> usernameBuff {};
-            std::streamsize len = (std::streamsize)connection.connection->getSocket().read_some(buffer(usernameBuff));
+            std::streamsize len = (std::streamsize)connection->getSocket().read_some(buffer(usernameBuff));
             std::string username = std::string(usernameBuff.data(), len);
 
-            connection.username = username;
+            connection->SetUsername(username);
 
             // Sending back user's ID.
-            write(connection.connection->getSocket(), buffer(std::to_string(connection.ID) + "\n"));
-            LOG_LINE("Connection established with user " << "\'" << username << "\', id: " << connection.ID);
+            write(connection->getSocket(), buffer(std::to_string(connection->GetID()) + "\n"));
+            LOG_LINE("Connection established with user " << "\'" << connection->GetUsername() << "\', id: " << connection->GetID());
 
-            connection.connection->Start(
+            connection->Start(
                 [this](const ActualPackage &package) {
-                    this->Broadcast(package);
+                    if (package.header.type == Package::Type::TextMessage) {
+                        // Transforming the message. Adding sender username then broadcasting.
+                        this->BroadcastMessage(package.body.data, package.header.sender);
+                    }
+                    else
+                        this->Broadcast(package);
                 },
                 [this, connection]() {
                     if (this->connections.erase(
                         std::find_if(
                             connections.begin(), connections.end(),
-                            [this, connection](const TCPConnection_Data& c) {
-                                return c.ID == connection.ID;
+                            [this, connection](const TCPConnection::pointer& c) {
+                                return c->GetID() == connection->GetID();
                             }
                         )
                     ) != connections.end()) {
-                        this->BroadcastMessage("User " + connection.username + " has left.\n", 0);
-                        LOG_LINE("User " + connection.username + " has left.\n");
+                        this->BroadcastMessage("User " + connection->GetUsername() + " has left.\n", 0);
+                        LOG_LINE("User " + connection->GetUsername() + " has left.\n");
                     }
                 }
             );

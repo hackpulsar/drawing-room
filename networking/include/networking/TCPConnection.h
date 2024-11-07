@@ -33,6 +33,12 @@ namespace Core::Networking {
             return pointer(new TCPConnection(context));
         }
 
+        void SetID(std::size_t id);
+        void SetUsername(const std::string& username);
+
+        std::size_t GetID() const;
+        const std::string& GetUsername() const;
+
         void Start(PackageCallback&& pckgCallback, ErrorCallback&& errorCallback);
 
         void PostPackage(ActualPackage&& package);
@@ -52,6 +58,9 @@ namespace Core::Networking {
 
         PackageCallback packageCallback;
         ErrorCallback errorCallback;
+
+        std::size_t id{};
+        std::string username = "unknown";
 
     };
 }
