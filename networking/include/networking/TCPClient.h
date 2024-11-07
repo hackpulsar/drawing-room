@@ -31,7 +31,7 @@ namespace Core::Networking {
     private:
         boost::system::error_code ReadStringUntil(char delimiter);
 
-        void OnMessageReceived(const boost::system::error_code& ec, std::size_t bytesTransferred);
+        void OnPackageReceived(const boost::system::error_code& ec, std::size_t bytesTransferred);
 
         io_context context {};
         tcp::endpoint endpoint;

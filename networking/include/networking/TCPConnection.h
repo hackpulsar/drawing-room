@@ -16,7 +16,7 @@ namespace Core::Networking {
         return ++id;
     }
 
-    typedef std::function<void(const std::string&)> MessageCallback;
+    typedef std::function<void(const ActualPackage&)> PackageCallback;
     typedef std::function<void()> ErrorCallback;
 
     class TCPConnection :
@@ -32,27 +32,24 @@ namespace Core::Networking {
             return pointer(new TCPConnection(context));
         }
 
-        void Start(MessageCallback&& msgCallback, ErrorCallback&& errorCallback);
+        void Start(PackageCallback&& pckgCallback, ErrorCallback&& errorCallback);
 
         void PostPackage(ActualPackage&& package);
-        void Post(const std::string& message);
+        void Post(const ActualPackage &package);
 
         tcp::socket& getSocket();
 
     private:
         void StartRead();
         void StartWrite();
-        void StartSendPackage();
 
         void HandleRead(const boost::system::error_code& ec, std::size_t bytesTransferred);
         void HandleWrite(const boost::system::error_code& ec, std::size_t bytesTransferred);
 
         streambuf streamBuffer { Settings::MESSAGE_MAX_SIZE };
-
-        std::stack<std::string> pendingMessages;
         std::stack<ActualPackage> pendingPackages;
 
-        MessageCallback messageCallback;
+        PackageCallback packageCallback;
         ErrorCallback errorCallback;
 
     };

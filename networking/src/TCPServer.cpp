@@ -38,10 +38,17 @@ namespace Core::Networking {
         connections.push_back(newConnectionData);
     }
 
-    void TCPServer::Broadcast(const std::string &message) const {
+    void TCPServer::BroadcastMessage(const std::string &message) const {
+        this->Broadcast(ActualPackage {
+            Package::Header { message.size(), Package::Type::TextMessage },
+            Package::Body { message }
+        });
+    }
+
+    void TCPServer::Broadcast(const ActualPackage &package) const {
         for (auto& c : connections) {
             if (c.connection->getSocket().is_open())
-                c.connection->Post(message);
+                c.connection->Post(package);
         }
     }
 
@@ -61,8 +68,8 @@ namespace Core::Networking {
             LOG_LINE("Welcome sent");
 
             connection.connection->Start(
-                [this, connection](const std::string& message) {
-                    this->Broadcast(connection.username + ": " + message + "\n");
+                [this](const ActualPackage &package) {
+                    this->Broadcast(package);
                 },
                 [this, connection]() {
                     if (this->connections.erase(
@@ -73,14 +80,14 @@ namespace Core::Networking {
                             }
                         )
                     ) != connections.end()) {
-                        this->Broadcast("User " + connection.username + " has left.\n");
+                        this->BroadcastMessage("User " + connection.username + " has left.\n");
                         LOG_LINE("User " + connection.username + " has left.\n");
                     }
                 }
             );
 
             // Broadcasting new connection
-            this->Broadcast("User " + username + " has joined.\n");
+            this->BroadcastMessage("User " + username + " has joined.\n");
         }
         else
             LOG_LINE(ec.what());

@@ -7,7 +7,7 @@ namespace Core::Networking {
     using namespace boost::asio;
     using ip::tcp;
 
-    typedef std::function<void(boost::system::error_code, std::size_t)> AsyncCallbackF;
+    typedef std::function<void(boost::system::error_code, std::size_t)> AsyncCallback;
 
     // Base class that implements basic sockets' communication.
     // Note that you should connect the socket yourself in a class
@@ -20,24 +20,17 @@ namespace Core::Networking {
         virtual bool SendPackage(const ActualPackage &package) {
             // Sending header with size of the body and package type.
             // Type is necessary for the server to parse the package correctly.
-            auto e = this->SendString(
-                std::to_string(package.header.bodySize) + ":" + std::to_string((int)package.header.type) + "|" +
-                package.body.data + ";"
-            );
+            auto e = this->SendString(ActualPackage::Compress(package));
 
             if (e) return false;
             return true;
         }
 
         // Does everything the same way except it's async.
-        virtual void AsyncSendPackage(const ActualPackage &package) {
-            this->AsyncSendString(
-                std::to_string(package.header.bodySize) + ":" + std::to_string((int)package.header.type) + "|" +
-                package.body.data + ";",
-                [](boost::system::error_code ec, std::size_t bytes_transferred) {
-                    // ...
-                }
-            );
+        void AsyncSendPackage(
+            const ActualPackage &package,
+            const AsyncCallback& callback = [](boost::system::error_code ec, std::size_t bytes_transferred) {}) const {
+            this->AsyncSendString(ActualPackage::Compress(package), callback);
         }
 
     protected:
@@ -47,7 +40,7 @@ namespace Core::Networking {
             return ec;
         }
 
-        void AsyncSendString(const std::string &message, const AsyncCallbackF& callback) const {
+        void AsyncSendString(const std::string &message, const AsyncCallback& callback) const {
             async_write(*socket, buffer(message), callback);
         }
 

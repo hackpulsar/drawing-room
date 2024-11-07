@@ -14,8 +14,8 @@ namespace Core::Networking {
         socket->close();
     }
 
-    void TCPConnection::Start(MessageCallback&& msgCallback, ErrorCallback&& errorHandler) {
-        messageCallback = std::move(msgCallback);
+    void TCPConnection::Start(PackageCallback &&pckgCallback, ErrorCallback &&errorHandler) {
+        packageCallback = std::move(pckgCallback);
         errorCallback = std::move(errorHandler);
         this->StartRead();
     }
@@ -24,12 +24,12 @@ namespace Core::Networking {
         bool queueIdle = pendingPackages.empty();
         pendingPackages.push(std::move(package));
 
-        if (queueIdle) this->StartSendPackage();
+        if (queueIdle) this->StartWrite();
     }
 
-    void TCPConnection::Post(const std::string &message) {
-        bool queueIdle = pendingMessages.empty();
-        pendingMessages.push(message);
+    void TCPConnection::Post(const ActualPackage &package) {
+        bool queueIdle = pendingPackages.empty();
+        pendingPackages.push(package);
 
         if (queueIdle) this->StartWrite();
     }
@@ -51,9 +51,8 @@ namespace Core::Networking {
     }
 
     void TCPConnection::StartWrite() {
-        async_write(
-            *socket,
-            buffer(pendingMessages.top()),
+        this->AsyncSendPackage(
+            pendingPackages.top(),
             boost::bind(
                 &TCPConnection::HandleWrite,
                 shared_from_this(),
@@ -63,33 +62,18 @@ namespace Core::Networking {
         );
     }
 
-    void TCPConnection::StartSendPackage() {
-
-    }
-
     void TCPConnection::HandleRead(const boost::system::error_code &ec, std::size_t bytesTransferred) {
         if (!ec) {
-            std::string received(
-                buffers_begin(streamBuffer.data()),
-                buffers_begin(streamBuffer.data()) + bytesTransferred - 1
-            );
-            streamBuffer.consume(bytesTransferred);
+            auto package = ActualPackage::Parse(streamBuffer, bytesTransferred);
+            packageCallback(package);
 
-            auto headerDelimiter = received.find(':');
-            int bytesToRead = std::stoi(received.substr(0, headerDelimiter));
-            Package::Type packageType = (Package::Type)std::stoi(received.substr(headerDelimiter + 1, 1));
-
-            std::string data = received.substr(received.find('|') + 1, bytesToRead);
-
-            switch (packageType) {
+            switch (package.header.type) {
                 case Package::Type::TextMessage:
-                    messageCallback(data);
+                    LOG_LINE(package.body.data);
                     break;
                 default:
                     break;
             }
-
-            LOG_LINE(received);
         }
         else if (ec == error::eof) {
             // Disconnected correctly
@@ -110,8 +94,8 @@ namespace Core::Networking {
 
     void TCPConnection::HandleWrite(const boost::system::error_code &ec, std::size_t bytesTransferred) {
         if (!ec) {
-            pendingMessages.pop();
-            if (!pendingMessages.empty()) this->StartWrite();
+            pendingPackages.pop();
+            if (!pendingPackages.empty()) this->StartWrite();
         }
         else {
             LOG_LINE("HandleWrite " << ec.what());

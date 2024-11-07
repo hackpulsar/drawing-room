@@ -213,6 +213,18 @@ int main(int, char**)
                 if (sqrtf(powf(lastPoint.x - mouse_pos_in_canvas.x, 2) + powf(lastPoint.y - mouse_pos_in_canvas.y, 2)) > 8.0f) {
                     lines.back().push_back(mouse_pos_in_canvas);
                     lastPoint = lines.back().back();
+
+                    // Construct package body
+                    std::string lineData = std::to_string(lastPoint.x) + ";" + std::to_string(lastPoint.y);
+
+                    using namespace Core::Networking;
+                    using namespace Core::Networking::Package;
+
+                    // Send new line to the server
+                    client.AsyncSendPackage(ActualPackage {
+                        Header { lineData.size(), Type::BoardUpdate },
+                        Body { lineData }
+                    });
                 }
 
                 if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))

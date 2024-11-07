@@ -44,13 +44,13 @@ namespace Core::Networking {
         return true;
     }
 
-    // TODO: implement reading packages from the server
     void TCPClient::StartReading() {
+        // Once again, ';' indicates the end of the package
         async_read_until(
             *socket,
-            streamBuffer, "\n",
+            streamBuffer, ";",
             [this] (boost::system::error_code ec, size_t bytes_transferred) {
-                this->OnMessageReceived(ec, bytes_transferred);
+                this->OnPackageReceived(ec, bytes_transferred);
             }
         );
         context.run();
@@ -70,17 +70,13 @@ namespace Core::Networking {
         return ec;
     }
 
-    void TCPClient::OnMessageReceived(const boost::system::error_code& ec, std::size_t bytesTransferred) {
+    void TCPClient::OnPackageReceived(const boost::system::error_code& ec, std::size_t bytesTransferred) {
         if (!ec) {
-            std::string message(
-                buffers_begin(streamBuffer.data()),
-                buffers_begin(streamBuffer.data()) + bytesTransferred - 1
-            );
-            streamBuffer.consume(bytesTransferred);
+            auto package = ActualPackage::Parse(streamBuffer, bytesTransferred);
 
-            LOG_LINE(message);
+            msgRecCallback(package.body.data);
+            LOG_LINE(package.body.data);
 
-            msgRecCallback(message);
             if (this->IsConnected()) {
                 this->StartReading();
             }

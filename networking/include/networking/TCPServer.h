@@ -23,7 +23,8 @@ namespace Core::Networking {
         
         void StartAccept();
 
-        void Broadcast(const std::string& message) const;
+        void BroadcastMessage(const std::string& message) const;
+        void Broadcast(const ActualPackage& package) const;
 
     private:
         void HandleAccept(TCPConnection_Data& connection, const boost::system::error_code& ec);
