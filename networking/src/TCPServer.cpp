@@ -1,7 +1,8 @@
 #include "networking/TCPServer.h"
 
-#include "utils/log.h"
 #include <boost/bind/bind.hpp>
+
+#include "utils/log.h"
 
 namespace Core::Networking {
     TCPServer::TCPServer(int port)
@@ -18,6 +19,7 @@ namespace Core::Networking {
             s.connection->getSocket().shutdown(tcp::socket::shutdown_both);
             s.connection->getSocket().close();
         }
+        connections.clear();
     }
 
     void TCPServer::StartAccept() {

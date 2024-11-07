@@ -160,12 +160,11 @@ int main(int, char**)
                 using namespace Core::Networking;
                 using namespace Core::Networking::Package;
 
-                client.SendPackage(ActualPackage {
+                client.AsyncSendPackage(ActualPackage {
                     Header { message.size(), Type::TextMessage },
-                    Body { message + "\n" }
+                    Body { message }
                 });
 
-                //client.AsyncSendString(message + "\n");
                 message = "";
             }
 

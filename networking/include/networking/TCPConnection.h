@@ -40,9 +40,9 @@ namespace Core::Networking {
         tcp::socket& getSocket();
 
     private:
-        void OnRead();
-        void OnWrite();
-        void OnSendPackage();
+        void StartRead();
+        void StartWrite();
+        void StartSendPackage();
 
         void HandleRead(const boost::system::error_code& ec, std::size_t bytesTransferred);
         void HandleWrite(const boost::system::error_code& ec, std::size_t bytesTransferred);

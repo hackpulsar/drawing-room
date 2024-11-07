@@ -64,18 +64,6 @@ namespace Core::Networking {
 
     void TCPClient::SetUsername(const std::string &username) { this->username = username; }
 
-    void TCPClient::AsyncSendString(const std::string &message) {
-        async_write(
-            *socket, buffer(message),
-            [this](boost::system::error_code e, size_t bytes_transferred) {
-                if (e) {
-                    LOG_LINE("Error sending a message");
-                    socket->close();
-                }
-            }
-        );
-    }
-
     boost::system::error_code TCPClient::ReadStringUntil(char delimiter) {
         boost::system::error_code ec;
         read_until(*socket, streamBuffer, delimiter, ec);

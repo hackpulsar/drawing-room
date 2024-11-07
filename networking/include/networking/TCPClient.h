@@ -29,8 +29,6 @@ namespace Core::Networking {
         MessageReceivedCallback msgRecCallback;
 
     private:
-        void AsyncSendString(const std::string& message);
-
         boost::system::error_code ReadStringUntil(char delimiter);
 
         void OnMessageReceived(const boost::system::error_code& ec, std::size_t bytesTransferred);
