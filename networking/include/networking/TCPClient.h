@@ -10,6 +10,7 @@ namespace Core::Networking {
     using namespace boost::asio;
 
     typedef std::function<void(const std::string&)> MessageReceivedCallback;
+    typedef std::function<void(const ActualPackage&)> PackageReceivedCallback;
 
     class TCPClient : public TCPCommunicative {
     public:
@@ -29,6 +30,7 @@ namespace Core::Networking {
         std::size_t GetID() const;
 
         MessageReceivedCallback msgRecCallback;
+        PackageReceivedCallback pkgRecCallback;
 
     private:
         boost::system::error_code ReadStringUntil(char delimiter);
@@ -41,7 +43,7 @@ namespace Core::Networking {
         streambuf streamBuffer { Settings::MESSAGE_MAX_SIZE };
         bool connected = false;
         std::string username;
-        std::size_t id{};
+        IDType id{};
     };
 }
 

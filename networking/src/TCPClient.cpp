@@ -78,8 +78,17 @@ namespace Core::Networking {
         if (!ec) {
             auto package = ActualPackage::Parse(streamBuffer, bytesTransferred);
 
-            msgRecCallback(package.body.data);
-            LOG_LINE(package.body.data);
+            switch (package.header.type) {
+                case Package::Type::TextMessage:
+                    msgRecCallback(package.body.data);
+                    LOG_LINE(package.body.data);
+                    break;
+                case Package::Type::BoardUpdate:
+                    pkgRecCallback(package);
+                    break;
+                default:
+                    break;
+            }
 
             if (this->IsConnected()) {
                 this->StartReading();

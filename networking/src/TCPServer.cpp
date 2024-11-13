@@ -38,7 +38,7 @@ namespace Core::Networking {
         connections.push_back(newConnection);
     }
 
-    void TCPServer::BroadcastMessage(const std::string &message, std::size_t sender) const {
+    void TCPServer::BroadcastMessage(const std::string &message, IDType sender) const {
         std::string senderUsername = sender == 0 ? "Server" : "unknown";
         // Getting a username based on sender's ID.
         for (auto& c : connections) {
@@ -46,15 +46,22 @@ namespace Core::Networking {
                 senderUsername = c->GetUsername();
         }
 
-        this->Broadcast(ActualPackage {
+        this->BroadcastToEach(ActualPackage {
             Package::Header { message.size() + senderUsername.size() + 2, Package::Type::TextMessage, sender },
             Package::Body { senderUsername + ": " + message }
         });
     }
 
-    void TCPServer::Broadcast(const ActualPackage &package) const {
+    void TCPServer::BroadcastToEach(const ActualPackage &package) const {
         for (auto& c : connections) {
             if (c->getSocket().is_open())
+                c->Post(package);
+        }
+    }
+
+    void TCPServer::BroadcastToEachExcept(const ActualPackage &package, IDType except) const {
+        for (auto& c : connections) {
+            if (c->GetID() != except && c->getSocket().is_open())
                 c->Post(package);
         }
     }
@@ -79,7 +86,7 @@ namespace Core::Networking {
                         this->BroadcastMessage(package.body.data, package.header.sender);
                     }
                     else
-                        this->Broadcast(package);
+                        this->BroadcastToEachExcept(package, package.header.sender);
                 },
                 [this, connection]() {
                     if (this->connections.erase(

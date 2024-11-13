@@ -9,7 +9,7 @@ namespace Core::Networking {
     }
 
     TCPConnection::~TCPConnection() {
-        LOG_LINE("TCOConnection destructor");
+        LOG_LINE("TCPConnection destructor");
         socket->shutdown(tcp::socket::shutdown_both);
         socket->close();
     }
@@ -76,6 +76,9 @@ namespace Core::Networking {
             switch (package.header.type) {
                 case Package::Type::TextMessage:
                     LOG_LINE("Message from id " << package.header.sender << ": " << package.body.data);
+                    break;
+                case Package::Type::BoardUpdate:
+                    LOG_LINE("Board update from id " << package.header.sender << ": " << package.body.data);
                     break;
                 default:
                     break;

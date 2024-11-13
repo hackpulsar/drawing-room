@@ -59,7 +59,7 @@ namespace Core::Networking {
         PackageCallback packageCallback;
         ErrorCallback errorCallback;
 
-        std::size_t id{};
+        IDType id{};
         std::string username = "unknown";
 
     };

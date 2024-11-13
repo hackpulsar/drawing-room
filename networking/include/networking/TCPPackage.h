@@ -2,6 +2,8 @@
 #define TCPPACKAGE_H
 
 namespace Core::Networking {
+    typedef std::size_t IDType;
+
     namespace Package {
         enum class Type {
             TextMessage = 0,
@@ -11,7 +13,7 @@ namespace Core::Networking {
         struct Header {
             std::size_t bodySize;
             Type type;
-            std::size_t sender;
+            IDType sender;
         };
 
         struct Body {

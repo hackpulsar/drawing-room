@@ -7,6 +7,7 @@
 
 #include <cstdio>
 #include <string>
+#include <iomanip>
 
 #define GL_SILENCE_DEPRECATION
 #if defined(IMGUI_IMPL_OPENGL_ES2)
@@ -95,8 +96,23 @@ int main(int, char**)
     std::vector<std::string> chat;
     std::string message;
 
+    ImVector<ImVector<ImVec2>> lines;
+
     Core::Networking::TCPClient client;
     client.msgRecCallback = [&chat] (const std::string& message) { chat.push_back(message); };
+    client.pkgRecCallback = [&lines] (const Core::Networking::ActualPackage& pkg) {
+        std::stringstream ss;
+        ss << pkg.body.data;
+
+        lines.push_back(ImVector<ImVec2>{});
+        int linesCount;
+        ss >> linesCount;
+        for (int i = 0; i < linesCount; i++) {
+            ImVec2 point;
+            ss >> point.x >> point.y;
+            lines.back().push_back(point);
+        }
+    };
     std::thread clientThread;
     std::atomic connecting(false);
 
@@ -174,7 +190,6 @@ int main(int, char**)
 
             ImGui::BeginChild("Canvas", ImVec2(800, 600));
 
-            static ImVector<ImVector<ImVec2>> lines;
             static ImVec2 scrolling(0.0f, 0.0f);
             static bool enableGrid = true;
             static bool isDrawing = false;
@@ -213,22 +228,27 @@ int main(int, char**)
                 if (sqrtf(powf(lastPoint.x - mouse_pos_in_canvas.x, 2) + powf(lastPoint.y - mouse_pos_in_canvas.y, 2)) > 8.0f) {
                     lines.back().push_back(mouse_pos_in_canvas);
                     lastPoint = lines.back().back();
+                }
+
+                if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                    isDrawing = false;
 
                     // Construct package body
-                    std::string lineData = std::to_string(lastPoint.x) + ";" + std::to_string(lastPoint.y);
+                    std::stringstream lineStream;
+                    lineStream << lines.back().size() << "\n"; // Number of points
+                    for (const auto& p : lines.back()) {
+                        lineStream << p.x << "\n" << p.y << "\n";
+                    }
 
                     using namespace Core::Networking;
                     using namespace Core::Networking::Package;
 
                     // Send new line to the server
                     client.AsyncSendPackage(ActualPackage {
-                        Header { lineData.size(), Type::BoardUpdate, client.GetID() },
-                        Body { lineData }
+                        Header { lineStream.str().size(), Type::BoardUpdate, client.GetID() },
+                        Body { lineStream.str() }
                     });
                 }
-
-                if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
-                    isDrawing = false;
             }
 
             if (isActive && ImGui::IsMouseDragging(ImGuiMouseButton_Right, 0.0f))
@@ -251,6 +271,10 @@ int main(int, char**)
             // Draw lines
             for (const auto& line : lines) {
                 for (int i = 0; i < line.size() - 1; i++) {
+                    /*LOG_LINE("Line " << i);
+                    for (const auto& p : line)
+                        LOG_LINE(p.x << " " << p.y); */
+
                     draw_list->AddLine(
                         ImVec2(origin.x + line[i].x, origin.y + line[i].y),
                         ImVec2(origin.x + line[i + 1].x, origin.y + line[i + 1].y),
