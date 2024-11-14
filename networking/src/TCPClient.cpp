@@ -76,19 +76,8 @@ namespace Core::Networking {
 
     void TCPClient::OnPackageReceived(const boost::system::error_code& ec, std::size_t bytesTransferred) {
         if (!ec) {
-            auto package = ActualPackage::Parse(streamBuffer, bytesTransferred);
-
-            switch (package.header.type) {
-                case Package::Type::TextMessage:
-                    msgRecCallback(package.body.data);
-                    LOG_LINE(package.body.data);
-                    break;
-                case Package::Type::BoardUpdate:
-                    pkgRecCallback(package);
-                    break;
-                default:
-                    break;
-            }
+            auto package = Package::Parse(streamBuffer, bytesTransferred);
+            pkgRecCallback(package);
 
             if (this->IsConnected()) {
                 this->StartReading();

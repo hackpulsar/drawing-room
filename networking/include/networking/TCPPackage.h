@@ -1,10 +1,13 @@
 #ifndef TCPPACKAGE_H
 #define TCPPACKAGE_H
 
+#include "nlohmann/json.hpp"
+
 namespace Core::Networking {
     typedef std::size_t IDType;
 
-    namespace Package {
+    class Package {
+    public:
         enum class Type {
             TextMessage = 0,
             BoardUpdate
@@ -13,25 +16,32 @@ namespace Core::Networking {
         struct Header {
             std::size_t bodySize;
             Type type;
-            IDType sender;
+            IDType senderID;
         };
 
         struct Body {
-            std::string data;
+            nlohmann::json data;
         };
-    }
 
-    struct ActualPackage {
-        ActualPackage(const Package::Header header, Package::Body body)
-            : header(header), body(std::move(body))
-        {}
+        Package(Header header, Body body)
+            : header(header), body(std::move(body)) { }
 
-        Package::Header header;
-        Package::Body body;
+        Header getHeader() const { return header; }
+        Body getBody() const { return body; }
 
-        // Parses the buffer with a string representation of the package and
-        // return a new ActualPackage instance.
-        static ActualPackage Parse(boost::asio::streambuf& buff, std::size_t bytesReceived) {
+        static nlohmann::json CompressToJSON(const Package& package) {
+            nlohmann::json compressed;
+
+            compressed["header"]["bodySize"] = package.header.bodySize;
+            compressed["header"]["type"] = package.header.type;
+            compressed["header"]["senderID"] = package.header.senderID;
+
+            compressed["body"]["data"] = package.body.data;
+
+            return compressed;
+        }
+
+        static Package Parse(boost::asio::streambuf& buff, std::size_t bytesReceived) {
             using namespace boost::asio;
 
             std::string received(
@@ -40,34 +50,22 @@ namespace Core::Networking {
             );
             buff.consume(bytesReceived);
 
-            auto bytesDelimiter = received.find_first_of(':');
-            auto senderDelimiter = received.find_first_of(':', bytesDelimiter + 1);
-            auto headerDelimiter = received.find('|');
-
-            int bytesToRead = std::stoi(received.substr(0, bytesDelimiter));
-            Package::Type packageType = (Package::Type)std::stoi(received.substr(bytesDelimiter + 1, 1));
-            std::size_t sender = std::stoi(
-                received.substr(
-                    senderDelimiter + 1,
-                    headerDelimiter - senderDelimiter
-                )
-            );
-            std::string data = received.substr( headerDelimiter + 1, bytesToRead);
-
-            return ActualPackage {
-                Package::Header { (std::size_t)bytesToRead, packageType, sender },
-                Package::Body { data }
+            nlohmann::json receivedJSON = nlohmann::json::parse(received);
+            return Package {
+                Header {
+                    receivedJSON["header"]["bodySize"],
+                    receivedJSON["header"]["type"],
+                    receivedJSON["header"]["senderID"],
+                },
+                Body {
+                    receivedJSON["body"]["data"]
+                }
             };
         }
 
-        // Compresses the package into a string.
-        // Used to sed package through the network.
-        static std::string Compress(const ActualPackage& package) {
-            return std::to_string(package.header.bodySize) +
-                ":" + std::to_string((int)package.header.type) +
-                ":" + std::to_string((int)package.header.sender) +
-                "|" + package.body.data + ";";
-        }
+    protected:
+        Header header = {};
+        Body body = {};
     };
 }
 

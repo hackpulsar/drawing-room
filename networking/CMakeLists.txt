@@ -40,4 +40,5 @@ target_link_libraries(${PROJECT_NAME}
             ${Boost_LIBRARIES}
             ${OPENGL_LIBRARIES}
             glfw
+            nlohmann_json::nlohmann_json
 )

@@ -46,20 +46,22 @@ namespace Core::Networking {
                 senderUsername = c->GetUsername();
         }
 
-        this->BroadcastToEach(ActualPackage {
+        nlohmann::json data;
+        data["message"] = senderUsername + ": " + message;
+        this->BroadcastToEach(Package {
             Package::Header { message.size() + senderUsername.size() + 2, Package::Type::TextMessage, sender },
-            Package::Body { senderUsername + ": " + message }
+            Package::Body { data }
         });
     }
 
-    void TCPServer::BroadcastToEach(const ActualPackage &package) const {
+    void TCPServer::BroadcastToEach(const Package &package) const {
         for (auto& c : connections) {
             if (c->getSocket().is_open())
                 c->Post(package);
         }
     }
 
-    void TCPServer::BroadcastToEachExcept(const ActualPackage &package, IDType except) const {
+    void TCPServer::BroadcastToEachExcept(const Package &package, IDType except) const {
         for (auto& c : connections) {
             if (c->GetID() != except && c->getSocket().is_open())
                 c->Post(package);
@@ -80,13 +82,13 @@ namespace Core::Networking {
             LOG_LINE("Connection established with user " << "\'" << connection->GetUsername() << "\', id: " << connection->GetID());
 
             connection->Start(
-                [this](const ActualPackage &package) {
-                    if (package.header.type == Package::Type::TextMessage) {
+                [this](const Package &package) {
+                    if (package.getHeader().type == Package::Type::TextMessage) {
                         // Transforming the message. Adding sender username then broadcasting.
-                        this->BroadcastMessage(package.body.data, package.header.sender);
+                        this->BroadcastMessage(package.getBody().data["message"], package.getHeader().senderID);
                     }
                     else
-                        this->BroadcastToEachExcept(package, package.header.sender);
+                        this->BroadcastToEachExcept(package, package.getHeader().senderID);
                 },
                 [this, connection]() {
                     if (this->connections.erase(

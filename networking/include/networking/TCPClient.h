@@ -9,8 +9,7 @@
 namespace Core::Networking {
     using namespace boost::asio;
 
-    typedef std::function<void(const std::string&)> MessageReceivedCallback;
-    typedef std::function<void(const ActualPackage&)> PackageReceivedCallback;
+    typedef std::function<void(const Package&)> PackageReceivedCallback;
 
     class TCPClient : public TCPCommunicative {
     public:
@@ -29,7 +28,6 @@ namespace Core::Networking {
 
         std::size_t GetID() const;
 
-        MessageReceivedCallback msgRecCallback;
         PackageReceivedCallback pkgRecCallback;
 
     private:

@@ -26,14 +26,14 @@ namespace Core::Networking {
         this->StartRead();
     }
 
-    void TCPConnection::PostPackage(ActualPackage &&package) {
+    void TCPConnection::PostPackage(Package &&package) {
         bool queueIdle = pendingPackages.empty();
         pendingPackages.push(std::move(package));
 
         if (queueIdle) this->StartWrite();
     }
 
-    void TCPConnection::Post(const ActualPackage &package) {
+    void TCPConnection::Post(const Package &package) {
         bool queueIdle = pendingPackages.empty();
         pendingPackages.push(package);
 
@@ -70,15 +70,17 @@ namespace Core::Networking {
 
     void TCPConnection::HandleRead(const boost::system::error_code &ec, std::size_t bytesTransferred) {
         if (!ec) {
-            auto package = ActualPackage::Parse(streamBuffer, bytesTransferred);
+            auto package = Package::Parse(streamBuffer, bytesTransferred);
             packageCallback(package);
 
-            switch (package.header.type) {
+            LOG_LINE(package.getBody().data["message"]);
+
+            switch (package.getHeader().type) {
                 case Package::Type::TextMessage:
-                    LOG_LINE("Message from id " << package.header.sender << ": " << package.body.data);
+                    LOG_LINE("Message from id " << package.getHeader().senderID << ": " << package.getBody().data);
                     break;
                 case Package::Type::BoardUpdate:
-                    LOG_LINE("Board update from id " << package.header.sender << ": " << package.body.data);
+                    LOG_LINE("Board update from id " << package.getHeader().senderID << ": " << package.getBody().data);
                     break;
                 default:
                     break;

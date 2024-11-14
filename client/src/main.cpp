@@ -7,7 +7,6 @@
 
 #include <cstdio>
 #include <string>
-#include <iomanip>
 
 #define GL_SILENCE_DEPRECATION
 #if defined(IMGUI_IMPL_OPENGL_ES2)
@@ -105,26 +104,41 @@ int main(int, char**)
     EMSCRIPTEN_MAINLOOP_BEGIN
 #else
 
+    Core::Networking::Package pkg = {
+        Core::Networking::Package::Header {},
+        Core::Networking::Package::Body { "hackpulsar" }
+    };
+    LOG_LINE(Core::Networking::Package::CompressToJSON(pkg).dump());
+
     std::string adress = "localhost", port = "1488", username = "test";
     std::vector<std::string> chat;
     std::string message;
 
     ImVector<ImVector<ImVec2>> lines;
-    ImVec4 color = ImVec4(0.2f, 0.2f, 0.2f, 1.0f);
+    float color[4] { 0.2f, 0.2f, 0.2f, 1.0f };
+    float thickness = 2.f;
 
     Core::Networking::TCPClient client;
-    client.msgRecCallback = [&chat] (const std::string& message) { chat.push_back(message); };
-    client.pkgRecCallback = [&lines] (const Core::Networking::ActualPackage& pkg) {
-        std::stringstream ss;
-        ss << pkg.body.data;
+    client.pkgRecCallback = [&chat, &lines] (const Core::Networking::Package& pkg) {
+        using namespace Core::Networking;
 
-        lines.push_back(ImVector<ImVec2>{});
-        int linesCount;
-        ss >> linesCount;
-        for (int i = 0; i < linesCount; i++) {
-            ImVec2 point;
-            ss >> point.x >> point.y;
-            lines.back().push_back(point);
+        switch (pkg.getHeader().type) {
+            case Package::Type::TextMessage:
+                chat.push_back(pkg.getBody().data["message"]);
+                break;
+            case Package::Type::BoardUpdate:
+                std::stringstream ss;
+                ss << pkg.getBody().data;
+
+                lines.push_back(ImVector<ImVec2>{});
+                int linesCount;
+                ss >> linesCount;
+                for (int i = 0; i < linesCount; i++) {
+                    ImVec2 point;
+                    ss >> point.x >> point.y;
+                    lines.back().push_back(point);
+                }
+                break;
         }
     };
     std::thread clientThread;
@@ -219,11 +233,12 @@ int main(int, char**)
             ImGui::SameLine();
             if (ImGui::Button("Send", { ImGui::GetContentRegionAvail().x, 0.f }) && !message.empty()) {
                 using namespace Core::Networking;
-                using namespace Core::Networking::Package;
 
-                client.AsyncSendPackage(ActualPackage {
-                    Header { message.size(), Type::TextMessage, client.GetID() },
-                    Body { message }
+                nlohmann::json data;
+                data["message"] = message;
+                client.AsyncSendPackage(Package {
+                    Package::Header { message.size(), Package::Type::TextMessage, client.GetID() },
+                    Package::Body { data }
                 });
 
                 message = "";
@@ -292,13 +307,12 @@ int main(int, char**)
                     }
 
                     using namespace Core::Networking;
-                    using namespace Core::Networking::Package;
 
                     // Send new line to the server
-                    client.AsyncSendPackage(ActualPackage {
+                    /*client.AsyncSendPackage(ActualPackage {
                         Header { lineStream.str().size(), Type::BoardUpdate, client.GetID() },
                         Body { lineStream.str() }
-                    });
+                    });*/
                 }
             }
 
@@ -325,14 +339,21 @@ int main(int, char**)
                     draw_list->AddLine(
                         ImVec2(origin.x + line[i].x, origin.y + line[i].y),
                         ImVec2(origin.x + line[i + 1].x, origin.y + line[i + 1].y),
-                        IM_COL32(255, 255, 0, 255),
-                        2.0f
+                        IM_COL32(color[0] * 255, color[1] * 255, color[2] * 255, color[3] * 255),
+                        thickness
                     );
                 }
             }
             draw_list->PopClipRect();
 
             ImGui::EndChild();
+            ImGui::End();
+
+            // Tools window
+            ImGui::Begin("Tools");
+            ImGui::ColorEdit4("Colour", color);
+            ImGui::Spacing();
+            ImGui::SliderFloat("Thickness", &thickness, 0.f, 10.f);
             ImGui::End();
 
             ImGui::End(); // Dockspace

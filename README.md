@@ -1,2 +1,2 @@
 # drawing-room
-TCP Drawing applications for you and your friends.
+TCP Drawing application for you and your friends.

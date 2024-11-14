@@ -17,10 +17,10 @@ namespace Core::Networking {
         TCPCommunicative() = default;
         virtual ~TCPCommunicative() { delete socket; };
 
-        virtual bool SendPackage(const ActualPackage &package) {
+        virtual bool SendPackage(const Package &package) {
             // Sending header with size of the body and package type.
             // Type is necessary for the server to parse the package correctly.
-            auto e = this->SendString(ActualPackage::Compress(package));
+            auto e = this->SendString(Package::CompressToJSON(package).dump());
 
             if (e) return false;
             return true;
@@ -28,9 +28,9 @@ namespace Core::Networking {
 
         // Does everything the same way except it's async.
         void AsyncSendPackage(
-            const ActualPackage &package,
+            const Package &package,
             const AsyncCallback& callback = [](boost::system::error_code ec, std::size_t bytes_transferred) {}) const {
-            this->AsyncSendString(ActualPackage::Compress(package), callback);
+            this->AsyncSendString(Package::CompressToJSON(package).dump() + ";", callback);
         }
 
     protected:

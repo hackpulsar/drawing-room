@@ -2,3 +2,6 @@
 	path = imgui
 	url = https://github.com/ocornut/imgui
 	branch = docking
+[submodule "json"]
+	path = json
+	url = https://github.com/nlohmann/json
