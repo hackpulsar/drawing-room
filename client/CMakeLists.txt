@@ -11,9 +11,11 @@ add_executable(${PROJECT_NAME} ${CLIENT_SOURCES} ${CLIENT_HEADERS})
 target_include_directories(${PROJECT_NAME}
         PUBLIC
             networking
+            gui
 )
 
 target_link_libraries(${PROJECT_NAME}
         PUBLIC
             DrawingRoomNetworking
+            DrawingRoomGUI
 )

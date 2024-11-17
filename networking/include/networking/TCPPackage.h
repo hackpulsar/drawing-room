@@ -53,12 +53,12 @@ namespace Core::Networking {
             nlohmann::json receivedJSON = nlohmann::json::parse(received);
             return Package {
                 Header {
-                    receivedJSON["header"]["bodySize"],
-                    receivedJSON["header"]["type"],
-                    receivedJSON["header"]["senderID"],
+                    receivedJSON.at("header").at("bodySize"),
+                    receivedJSON.at("header").at("type"),
+                    receivedJSON.at("header").at("senderID"),
                 },
                 Body {
-                    receivedJSON["body"]["data"]
+                    receivedJSON.at("body").at("data")
                 }
             };
         }
