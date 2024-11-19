@@ -6,34 +6,58 @@
 
 #include <string>
 
-class ClientApplication {
-public:
-    ClientApplication();
-    ~ClientApplication();
+namespace Core::Rendering {
+    struct Color {
+        float r, g ,b, a;
 
-    bool Init();
-    void Run();
-    void Render();
+        void LoadFromArray(const float color[4]) {
+            r = color[0];
+            g = color[1];
+            b = color[2];
+            a = color[3];
+        }
+    };
 
-    Core::GUI::ImGuiLayer& GetGUI() const;
+    struct Line {
+        ImVector<ImVec2> points{};
+        Color color;
+        float thickness;
+    };
+}
 
-private:
-    Core::GUI::ImGuiLayer* guiLayer;
+namespace Client {
+    class ClientApplication {
+    public:
+        ClientApplication();
+        ~ClientApplication();
 
-    std::string address = "localhost", port = "1499", username = "user";
-    std::vector<std::string> chat;
-    std::string message;
+        bool Init();
+        void Run();
+        void Render();
 
-    Core::Networking::TCPClient client;
-    std::thread receiveThread;
+        Core::GUI::ImGuiLayer &GetGUI() const;
 
-    // TODO: lines stuff here
-    ImVector<ImVector<ImVec2>> lines;
-    float color[4] { 0.2f, 0.2f, 0.2f, 1.0f };
-    float thickness = 2.f;
+    private:
+        void RenderChat();
+        void RenderCanvas();
+        void RenderTools();
 
-    std::atomic<bool> connecting = false;
+        Core::GUI::ImGuiLayer *guiLayer;
 
-};
+        std::string address = "localhost", port = "1499", username = "user";
+        std::vector<std::string> chat;
+        std::string message;
+
+        Core::Networking::TCPClient client;
+        std::thread receiveThread;
+
+        ImVector<Core::Rendering::Line> lines;
+        float color[4]{0.5f, 0.5f, 0.2f, 1.0f};
+        float thickness = 2.f;
+
+        std::atomic<bool> connecting = false;
+    };
+
+}
 
 #endif //CLIENTAPPLICATION_H

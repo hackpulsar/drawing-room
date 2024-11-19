@@ -1,5 +1,3 @@
 #include "networking/TCPServer.h"
 
-int main() {
-    Core::Networking::TCPServer server(1488);
-}
+int main() { Core::Networking::TCPServer server(1499); }

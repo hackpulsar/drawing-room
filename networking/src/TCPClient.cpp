@@ -12,7 +12,8 @@ namespace Core::Networking {
     TCPClient::~TCPClient() {
         if (this->IsConnected())
             socket->shutdown(ip::tcp::socket::shutdown_both);
-        socket->close();
+        if (socket->is_open())
+            socket->close();
     }
 
     boost::system::error_code TCPClient::ConnectTo(const std::string &address, const std::string &port) {
@@ -83,8 +84,9 @@ namespace Core::Networking {
                 this->StartReading();
             }
         }
-        else
-            LOG_LINE("Error receiving message.");
+        else {
+            LOG_LINE("Error receiving message. " << ec.what());
+        }
     }
 
 }

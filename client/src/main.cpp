@@ -3,7 +3,7 @@
 
 int main()
 {
-    ClientApplication app;
+    Client::ClientApplication app;
     if (!app.Init()) {
         LOG_LINE("Failed to init application.");
         return 1;
