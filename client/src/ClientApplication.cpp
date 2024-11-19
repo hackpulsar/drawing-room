@@ -201,21 +201,23 @@ namespace Client {
             lines.back().points.push_back(mouse_pos_in_canvas);
             lines.back().points.push_back(mouse_pos_in_canvas);
 
+            this->currentLine = &lines.back();
+
             isDrawing = true;
             lastPoint = lines.back().points.back();
         }
 
         if (isDrawing) {
-            lines.back().points.back() = mouse_pos_in_canvas;
+            this->currentLine->points.back() = mouse_pos_in_canvas;
 
-            if (sqrtf(powf(lastPoint.x - mouse_pos_in_canvas.x, 2) + powf(lastPoint.y - mouse_pos_in_canvas.y, 2)) >
-                8.0f) {
-                lines.back().points.push_back(mouse_pos_in_canvas);
+            if (sqrtf(powf(lastPoint.x - mouse_pos_in_canvas.x, 2) + powf(lastPoint.y - mouse_pos_in_canvas.y, 2)) > 8.0f) {
+                this->currentLine->points.push_back(mouse_pos_in_canvas);
                 lastPoint = lines.back().points.back();
             }
 
             if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
                 isDrawing = false;
+                this->currentLine = nullptr;
 
                 // Construct package body
                 nlohmann::json data;
@@ -253,13 +255,13 @@ namespace Client {
         }
 
         // Draw lines
-        for (const auto &line: lines) {
-            for (int i = 0; i < line.points.size() - 1; i++) {
+        for (const auto &[points, color, thickness] : lines) {
+            for (int i = 0; i < points.size() - 1; i++) {
                 draw_list->AddLine(
-                    ImVec2(origin.x + line.points[i].x, origin.y + line.points[i].y),
-                    ImVec2(origin.x + line.points[i + 1].x, origin.y + line.points[i + 1].y),
-                    IM_COL32(line.color.r * 255, line.color.g * 255, line.color.b* 255, line.color.a * 255),
-                    line.thickness
+                    ImVec2(origin.x + points[i].x, origin.y + points[i].y),
+                    ImVec2(origin.x + points[i + 1].x, origin.y + points[i + 1].y),
+                    IM_COL32(color.r * 255, color.g * 255, color.b* 255, color.a * 255),
+                    thickness
                 );
             }
         }

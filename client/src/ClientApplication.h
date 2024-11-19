@@ -54,6 +54,7 @@ namespace Client {
         ImVector<Core::Rendering::Line> lines;
         float color[4]{0.5f, 0.5f, 0.2f, 1.0f};
         float thickness = 2.f;
+        Core::Rendering::Line* currentLine = nullptr;
 
         std::atomic<bool> connecting = false;
     };
