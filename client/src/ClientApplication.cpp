@@ -187,7 +187,7 @@ namespace Client {
                                ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
         const bool isHovered = ImGui::IsItemHovered(); // Hovered
         const bool isActive = ImGui::IsItemActive(); // Held
-        const ImVec2 origin(canvas_p0.x  + offset.x, canvas_p0.y + offset.y); // Lock scrolled origin
+        ImVec2 origin(canvas_p0.x  + offset.x, canvas_p0.y + offset.y); // Lock scrolled origin
         const ImVec2 mouse_pos_in_canvas(
             (guiLayer->GetIO().MousePos.x - origin.x) / zoom,
             (guiLayer->GetIO().MousePos.y - origin.y) / zoom
@@ -257,6 +257,17 @@ namespace Client {
             offset.x += guiLayer->GetIO().MouseDelta.x;
             offset.y += guiLayer->GetIO().MouseDelta.y;
         }
+
+        // Recalculate origin (offset may have changed).
+        // Also prevents lines from shake when zooming.
+        origin.x = canvas_p0.x  + offset.x;
+        origin.y = canvas_p0.y  + offset.y;
+
+        ImGui::Begin("dbg info");
+        ImGui::Text("%f, %f", mouse_pos_in_canvas.x, mouse_pos_in_canvas.y);
+        ImGui::Text("%f, %f", offset.x, offset.y);
+        ImGui::Text("%f", zoom);
+        ImGui::End();
 
         // Draw grid
         draw_list->PushClipRect(canvas_p0, canvas_p1, true);
