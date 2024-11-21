@@ -1,5 +1,6 @@
 #include "ClientApplication.h"
 
+#include "imgui_internal.h"
 #include "misc/cpp/imgui_stdlib.h"
 #include "utils/log.h"
 
@@ -167,7 +168,8 @@ namespace Client {
         ImGui::Begin("Board", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
         ImGui::BeginChild("Canvas", ImGui::GetContentRegionAvail());
 
-        static ImVec2 scrolling(0.0f, 0.0f);
+        static ImVec2 offset(0.0f, 0.0f);
+        static float zoom = 1.0f;
         static bool enableGrid = true;
         static bool isDrawing = false;
 
@@ -185,11 +187,25 @@ namespace Client {
                                ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
         const bool isHovered = ImGui::IsItemHovered(); // Hovered
         const bool isActive = ImGui::IsItemActive(); // Held
-        const ImVec2 origin(canvas_p0.x + scrolling.x, canvas_p0.y + scrolling.y); // Lock scrolled origin
-        const ImVec2 mouse_pos_in_canvas(guiLayer->GetIO().MousePos.x - origin.x,
-                                         guiLayer->GetIO().MousePos.y - origin.y);
+        const ImVec2 origin(canvas_p0.x  + offset.x, canvas_p0.y + offset.y); // Lock scrolled origin
+        const ImVec2 mouse_pos_in_canvas(
+            (guiLayer->GetIO().MousePos.x - origin.x) / zoom,
+            (guiLayer->GetIO().MousePos.y - origin.y) / zoom
+        );
 
         static ImVec2 lastPoint;
+
+        if (isHovered && this->guiLayer->GetIO().MouseWheel != 0.f) {
+            // Scaling clamp
+            float old_zoom = zoom;
+            zoom += this->guiLayer->GetIO().MouseWheel * 0.1f;
+            zoom = ImClamp(zoom, 0.5f, 3.0f);
+
+            // Modify offset with delta of zoom change multiplied by current mouse position.
+            // Zooms around the mouse position in the canvas.
+            offset.x += (mouse_pos_in_canvas.x * (old_zoom - zoom));
+            offset.y += (mouse_pos_in_canvas.y * (old_zoom - zoom));
+        }
 
         if (isHovered && isActive && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f) && !isDrawing) {
             // Create new line
@@ -238,18 +254,18 @@ namespace Client {
         }
 
         if (isActive && ImGui::IsMouseDragging(ImGuiMouseButton_Right, 0.0f)) {
-            scrolling.x += guiLayer->GetIO().MouseDelta.x;
-            scrolling.y += guiLayer->GetIO().MouseDelta.y;
+            offset.x += guiLayer->GetIO().MouseDelta.x;
+            offset.y += guiLayer->GetIO().MouseDelta.y;
         }
 
         // Draw grid
         draw_list->PushClipRect(canvas_p0, canvas_p1, true);
         if (enableGrid) {
-            const float GRID_STEP = 64.0f;
-            for (float x = fmodf(scrolling.x, GRID_STEP); x < canvas_sz.x; x += GRID_STEP)
+            const float GRID_STEP = 64.0f * zoom;
+            for (float x = fmodf(offset.x, GRID_STEP); x < canvas_sz.x; x += GRID_STEP)
                 draw_list->AddLine(ImVec2(canvas_p0.x + x, canvas_p0.y), ImVec2(canvas_p0.x + x, canvas_p1.y),
                                    IM_COL32(200, 200, 200, 40));
-            for (float y = fmodf(scrolling.y, GRID_STEP); y < canvas_sz.y; y += GRID_STEP)
+            for (float y = fmodf(offset.y, GRID_STEP); y < canvas_sz.y; y += GRID_STEP)
                 draw_list->AddLine(ImVec2(canvas_p0.x, canvas_p0.y + y), ImVec2(canvas_p1.x, canvas_p0.y + y),
                                    IM_COL32(200, 200, 200, 40));
         }
@@ -258,8 +274,8 @@ namespace Client {
         for (const auto &[points, color, thickness] : lines) {
             for (int i = 0; i < points.size() - 1; i++) {
                 draw_list->AddLine(
-                    ImVec2(origin.x + points[i].x, origin.y + points[i].y),
-                    ImVec2(origin.x + points[i + 1].x, origin.y + points[i + 1].y),
+                    ImVec2(origin.x + points[i].x * zoom, origin.y + points[i].y * zoom),
+                    ImVec2(origin.x + points[i + 1].x * zoom, origin.y + points[i + 1].y * zoom),
                     IM_COL32(color.r * 255, color.g * 255, color.b* 255, color.a * 255),
                     thickness
                 );

@@ -29,7 +29,8 @@ namespace Core::Networking {
         // Does everything the same way except it's async.
         void AsyncSendPackage(
             const Package &package,
-            const AsyncCallback& callback = [](boost::system::error_code ec, std::size_t bytes_transferred) {}) const {
+            const AsyncCallback& callback = [](boost::system::error_code ec, std::size_t bytes_transferred) {}
+        ) const {
             this->AsyncSendString(Package::CompressToJSON(package).dump() + ";", callback);
         }
 
