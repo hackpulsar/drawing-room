@@ -73,8 +73,6 @@ namespace Core::Networking {
             auto package = Package::Parse(streamBuffer, bytesTransferred);
             packageCallback(package);
 
-            LOG_LINE(package.getBody().data["message"]);
-
             switch (package.getHeader().type) {
                 case Package::Type::TextMessage:
                     LOG_LINE("Message from id " << package.getHeader().senderID << ": " << package.getBody().data);

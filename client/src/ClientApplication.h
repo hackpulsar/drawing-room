@@ -52,7 +52,7 @@ namespace Client {
         std::thread receiveThread;
 
         ImVector<Core::Rendering::Line> lines;
-        float color[4]{0.5f, 0.5f, 0.2f, 1.0f};
+        float color[4] {0.f, 1.f, 0.f, 1.0f};
         float thickness = 2.f;
         Core::Rendering::Line* currentLine = nullptr;
 

@@ -7,10 +7,7 @@
 namespace Core::Networking {
     TCPServer::TCPServer(int port)
         : port(port), acceptor(IOContext, tcp::endpoint(ip::tcp::v4(), port))
-    {
-        this->StartAccept();
-        IOContext.run();
-    }
+    { }
 
     TCPServer::~TCPServer() {
         // Close all connections
@@ -20,6 +17,12 @@ namespace Core::Networking {
             c->getSocket().close();
         }
         connections.clear();
+    }
+
+    void TCPServer::Run() {
+        this->StartAccept();
+        LOG_LINE("Server is UP");
+        IOContext.run();
     }
 
     void TCPServer::StartAccept() {
@@ -85,7 +88,7 @@ namespace Core::Networking {
                 [this](const Package &package) {
                     if (package.getHeader().type == Package::Type::TextMessage) {
                         // Transforming the message. Adding sender username then broadcasting.
-                        this->BroadcastMessage(package.getBody().data["message"], package.getHeader().senderID);
+                        this->BroadcastMessage(package.getBody().data.at("message"), package.getHeader().senderID);
                     }
                     else
                         this->BroadcastToEachExcept(package, package.getHeader().senderID);

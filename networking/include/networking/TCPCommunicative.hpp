@@ -1,6 +1,8 @@
 #ifndef TCPCOMMUNICATIVE_HPP
 #define TCPCOMMUNICATIVE_HPP
 
+#include <utils/log.h>
+
 #include "TCPPackage.h"
 
 namespace Core::Networking {
@@ -20,7 +22,7 @@ namespace Core::Networking {
         virtual bool SendPackage(const Package &package) {
             // Sending header with size of the body and package type.
             // Type is necessary for the server to parse the package correctly.
-            auto e = this->SendString(Package::CompressToJSON(package).dump());
+            auto e = this->SendString(Package::CompressToJSON(package).dump() + ";");
 
             if (e) return false;
             return true;
@@ -31,6 +33,7 @@ namespace Core::Networking {
             const Package &package,
             const AsyncCallback& callback = [](boost::system::error_code ec, std::size_t bytes_transferred) {}
         ) const {
+            LOG_LINE(Package::CompressToJSON(package).dump() + ";");
             this->AsyncSendString(Package::CompressToJSON(package).dump() + ";", callback);
         }
 

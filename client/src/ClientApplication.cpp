@@ -235,21 +235,47 @@ namespace Client {
                 isDrawing = false;
                 this->currentLine = nullptr;
 
+                using namespace Core::Networking;
+
                 // Construct package body
                 nlohmann::json data;
                 data["options"]["color"] = color;
                 data["options"]["thickness"] = thickness;
-                data["numberOfPoints"] = lines.back().points.size();
-                for (const auto &p: lines.back().points)
-                    data["points"].push_back({p.x, p.y});
+                if (lines.back().points.size() <= Settings::POINTS_PER_PACKAGE) {
+                    data["numberOfPoints"] = lines.back().points.size();
+                    for (const auto &p: lines.back().points)
+                        data["points"].push_back({p.x,p.y});
 
-                using namespace Core::Networking;
+                    client.AsyncSendPackage(Package{
+                        Package::Header{data.dump().size(), Package::Type::BoardUpdate, client.GetID()},
+                        Package::Body{data}
+                    });
+                }
+                else {
+                    // Send the points in packages 100 points each
+                    int pointsCount = 0;
 
-                // Send new line to the server
-                client.AsyncSendPackage(Package{
-                    Package::Header{data.dump().size(), Package::Type::BoardUpdate, client.GetID()},
-                    Package::Body{data}
-                });
+                    LOG_LINE(lines.back().points.size() << " points to send.");
+
+                    for (int i = 0; i < lines.back().points.size(); i++) {
+                        const auto &p = lines.back().points[i];
+                        data["points"].push_back({p.x, p.y});
+                        pointsCount++;
+
+                        if (pointsCount >= Settings::POINTS_PER_PACKAGE || i == lines.back().points.size() - 1) {
+                            data["numberOfPoints"] = pointsCount;
+                            // Send new line to the server
+                            client.AsyncSendPackage(Package{
+                                Package::Header{data.dump().size(), Package::Type::BoardUpdate, client.GetID()},
+                                Package::Body{data}
+                            });
+
+                            // Reconstruct the package to prepare for the next line
+                            data.erase("points"); // Clear all the points we added so far. Those are already sent
+                            pointsCount = 0;
+                        }
+                    }
+                }
             }
         }
 

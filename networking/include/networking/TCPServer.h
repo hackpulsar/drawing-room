@@ -6,14 +6,14 @@
 #include "TCPConnection.h"
 
 namespace Core::Networking {
-    enum class TCPServerState { OK = 0, ERROR = 1 };
-
     using namespace boost::asio;
 
     class TCPServer {
     public:
         explicit TCPServer(int port);
         ~TCPServer();
+
+        void Run();
         
         void StartAccept();
 
