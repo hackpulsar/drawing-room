@@ -17,7 +17,7 @@ namespace Core::Networking {
         ~TCPClient() override;
 
         boost::system::error_code ConnectTo(const std::string& address, const std::string& port);
-        bool Handshake();
+        bool Handshake(bool loadTheCanvas = false);
 
         void StartReading();
         void Stop();
@@ -31,14 +31,11 @@ namespace Core::Networking {
         PackageReceivedCallback pkgRecCallback;
 
     private:
-        boost::system::error_code ReadStringUntil(char delimiter);
-
         void OnPackageReceived(const boost::system::error_code& ec, std::size_t bytesTransferred);
 
         io_context context{};
         tcp::endpoint endpoint;
 
-        streambuf streamBuffer { Settings::MESSAGE_MAX_SIZE };
         bool connected = false;
         std::string username;
         IDType id{};

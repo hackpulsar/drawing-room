@@ -53,7 +53,6 @@ namespace Core::Networking {
         void HandleRead(const boost::system::error_code& ec, std::size_t bytesTransferred);
         void HandleWrite(const boost::system::error_code& ec, std::size_t bytesTransferred);
 
-        streambuf streamBuffer { Settings::MESSAGE_MAX_SIZE };
         std::stack<Package> pendingPackages;
 
         PackageCallback packageCallback;

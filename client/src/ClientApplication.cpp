@@ -26,10 +26,11 @@ namespace Client {
             using namespace Core::Networking;
 
             switch (pkg.getHeader().type) {
-                case Package::Type::TextMessage:
+                case Package::Type::TextMessage: {
                     this->chat.push_back(pkg.getBody().data["message"]);
                     break;
-                case Package::Type::BoardUpdate:
+                }
+                case Package::Type::BoardUpdate: {
                     this->lines.push_back(Core::Rendering::Line{});
                     int linesCount = pkg.getBody().data.at("numberOfPoints");
 
@@ -51,6 +52,8 @@ namespace Client {
                         this->lines.back().points.push_back(point);
                     }
                     break;
+                }
+                case Package::Type::Handshake: break;
             }
         };
 
@@ -69,6 +72,9 @@ namespace Client {
             ImGui::InputText("Port", &port);
             ImGui::InputText("Username", &username);
 
+            static bool loadTheCanvas = false;
+            ImGui::Checkbox("Load the canvas", &loadTheCanvas);
+
             if (!connecting) {
                 if (ImGui::Button("Connect")) {
                     client.SetUsername(username);
@@ -77,9 +83,11 @@ namespace Client {
 
                     if (!ec) {
                         receiveThread = std::thread([this] {
-                            if (client.Handshake()) {
+                            if (client.Handshake(loadTheCanvas)) {
                                 connecting = false;
                                 client.StartReading();
+                            } else {
+                                LOG_LINE("Handshake failed");
                             }
                         });
                     } else
@@ -148,7 +156,7 @@ namespace Client {
             nlohmann::json data;
             data["message"] = message;
             client.AsyncSendPackage(Package{
-                Package::Header{message.size(), Package::Type::TextMessage, client.GetID()},
+                Package::Header{message.size(), Package::Type::TextMessage, (int)client.GetID()},
                 Package::Body{data}
             });
 
@@ -247,7 +255,7 @@ namespace Client {
                         data["points"].push_back({p.x,p.y});
 
                     client.AsyncSendPackage(Package{
-                        Package::Header{data.dump().size(), Package::Type::BoardUpdate, client.GetID()},
+                        Package::Header{data.dump().size(), Package::Type::BoardUpdate, (int)client.GetID()},
                         Package::Body{data}
                     });
                 }
@@ -266,7 +274,7 @@ namespace Client {
                             data["numberOfPoints"] = pointsCount;
                             // Send new line to the server
                             client.AsyncSendPackage(Package{
-                                Package::Header{data.dump().size(), Package::Type::BoardUpdate, client.GetID()},
+                                Package::Header{data.dump().size(), Package::Type::BoardUpdate, (int)client.GetID()},
                                 Package::Body{data}
                             });
 

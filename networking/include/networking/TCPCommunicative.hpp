@@ -1,9 +1,9 @@
 #ifndef TCPCOMMUNICATIVE_HPP
 #define TCPCOMMUNICATIVE_HPP
 
-#include <utils/log.h>
-
 #include "TCPPackage.h"
+#include "utils/log.h"
+#include "utils/settings.h"
 
 namespace Core::Networking {
     using namespace boost::asio;
@@ -44,10 +44,17 @@ namespace Core::Networking {
             return ec;
         }
 
+        boost::system::error_code ReadStringUntil(char delimiter) {
+            boost::system::error_code ec;
+            read_until(*socket, streamBuffer, delimiter, ec);
+            return ec;
+        }
+
         void AsyncSendString(const std::string &message, const AsyncCallback& callback) const {
             async_write(*socket, buffer(message), callback);
         }
 
+        streambuf streamBuffer { Settings::MESSAGE_MAX_SIZE };
         tcp::socket* socket{};
     };
 }

@@ -73,15 +73,35 @@ namespace Core::Networking {
 
     void TCPServer::HandleAccept(TCPConnection::pointer& connection, const boost::system::error_code& ec) {
         if (!ec) {
-            // Reading username
-            std::array<char, 128> usernameBuff {};
-            std::streamsize len = (std::streamsize)connection->getSocket().read_some(buffer(usernameBuff));
-            std::string username = std::string(usernameBuff.data(), len);
+            // Reading handshake package
+            std::string handshakeBuff;
+            boost::system::error_code e;
+            read_until(connection->getSocket(), dynamic_buffer(handshakeBuff), ";", e);
 
-            connection->SetUsername(username);
+            if (e) {
+                LOG_LINE("Reading handshake request failed.");
+                return;
+            }
+
+            // Parsing trimmed handshake buffer (removed ';')
+            Package handshakePkg = Package::Parse(handshakeBuff.substr(0, handshakeBuff.size() - 1));
+            connection->SetUsername(handshakePkg.getBody().data.at("username"));
+
+            nlohmann::json data;
+            data["id"] = connection->GetID();
+            Package handshakeResponse {
+                Package::Header{ data.dump().length(), Package::Type::Handshake, Settings::SERVER_ID },
+                Package::Body{ data }
+            };
 
             // Sending back user's ID.
-            write(connection->getSocket(), buffer(std::to_string(connection->GetID()) + "\n"));
+            write(connection->getSocket(), buffer(Package::CompressToJSON(handshakeResponse).dump() + ";"), e);
+
+            if (e) {
+                LOG_LINE("Sending handshake response failed.");
+                return;
+            }
+
             LOG_LINE("Connection established with user " << "\'" << connection->GetUsername() << "\', id: " << connection->GetID());
 
             connection->Start(
@@ -109,7 +129,7 @@ namespace Core::Networking {
             );
 
             // Broadcasting new connection
-            this->BroadcastMessage("User " + username + " has joined.\n", 0);
+            this->BroadcastMessage("User " + connection->GetUsername() + " has joined.\n", 0);
         }
         else
             LOG_LINE(ec.what());

@@ -30,17 +30,31 @@ namespace Core::Networking {
         return ec;
     }
 
-    bool TCPClient::Handshake() {
-        if(this->SendString(username)) return false;
+    bool TCPClient::Handshake(bool loadTheCanvas) {
+        // Construct a handshake package
+        nlohmann::json data;
+        data["username"] = username;
 
-        if (this->ReadStringUntil('\n'))
+        Package handshake {
+            Package::Header{ data.dump().length(), Package::Type::Handshake, -1 },
+            Package::Body{ data }
+        };
+        if (!this->SendPackage(handshake))
             return false;
+
+        if (this->ReadStringUntil(';'))
+            return false;
+
+        if (loadTheCanvas) {
+            // TODO: start accepting packages with lines
+            // NOTE: number of packages will be in the response
+        }
 
         // Received an ID.
         std::istream is(&streamBuffer);
-        std::string message;
-        std::getline(is, message);
-        id = std::stoi(message);
+        std::string handshakeResponse;
+        std::getline(is, handshakeResponse);
+        id = Package::Parse(handshakeResponse.substr(0, handshakeResponse.size() - 1)).getBody().data.at("id");
 
         LOG_LINE("Received an ID from the server: " << id);
 
@@ -68,12 +82,6 @@ namespace Core::Networking {
     void TCPClient::SetUsername(const std::string &username) { this->username = username; }
 
     std::size_t TCPClient::GetID() const { return id; }
-
-    boost::system::error_code TCPClient::ReadStringUntil(char delimiter) {
-        boost::system::error_code ec;
-        read_until(*socket, streamBuffer, delimiter, ec);
-        return ec;
-    }
 
     void TCPClient::OnPackageReceived(const boost::system::error_code& ec, std::size_t bytesTransferred) {
         if (!ec) {

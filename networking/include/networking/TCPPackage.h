@@ -4,13 +4,14 @@
 #include "nlohmann/json.hpp"
 
 namespace Core::Networking {
-    typedef std::size_t IDType;
+    typedef int IDType;
 
     class Package {
     public:
         enum class Type {
             TextMessage = 0,
-            BoardUpdate
+            BoardUpdate,
+            Handshake
         };
 
         struct Header {
@@ -41,16 +42,8 @@ namespace Core::Networking {
             return compressed;
         }
 
-        static Package Parse(boost::asio::streambuf& buff, std::size_t bytesReceived) {
-            using namespace boost::asio;
-
-            std::string received(
-                buffers_begin(buff.data()),
-                buffers_begin(buff.data()) + bytesReceived - 1
-            );
-            buff.consume(bytesReceived);
-
-            nlohmann::json receivedJSON = nlohmann::json::parse(received);
+        static Package Parse(const std::string& buff) {
+            nlohmann::json receivedJSON = nlohmann::json::parse(buff);
             return Package {
                 Header {
                     receivedJSON.at("header").at("bodySize"),
@@ -61,6 +54,18 @@ namespace Core::Networking {
                     receivedJSON.at("body").at("data")
                 }
             };
+        }
+
+        static Package Parse(boost::asio::streambuf& buff, std::size_t bytesReceived) {
+            using namespace boost::asio;
+
+            std::string received(
+                buffers_begin(buff.data()),
+                buffers_begin(buff.data()) + bytesReceived - 1
+            );
+            buff.consume(bytesReceived);
+
+            return Parse(received);
         }
 
     protected:
