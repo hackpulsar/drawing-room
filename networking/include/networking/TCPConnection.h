@@ -41,7 +41,6 @@ namespace Core::Networking {
 
         void Start(PackageCallback&& pckgCallback, ErrorCallback&& errorCallback);
 
-        void PostPackage(Package&& package);
         void Post(const Package &package);
 
         tcp::socket& getSocket();

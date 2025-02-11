@@ -26,13 +26,6 @@ namespace Core::Networking {
         this->StartRead();
     }
 
-    void TCPConnection::PostPackage(Package &&package) {
-        bool queueIdle = pendingPackages.empty();
-        pendingPackages.push(std::move(package));
-
-        if (queueIdle) this->StartWrite();
-    }
-
     void TCPConnection::Post(const Package &package) {
         bool queueIdle = pendingPackages.empty();
         pendingPackages.push(package);
