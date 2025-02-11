@@ -1,6 +1,9 @@
 # Drawing Room
 TCP Drawing application for you and your friends.
 
+# Demo
+![output](https://github.com/user-attachments/assets/ca926dd2-67fe-4585-8555-4a3e4621b4cc)
+
 ## Build instructions
 ```
 git clone --recurse-submodules https://github.com/hackpulsar/drawing-room
